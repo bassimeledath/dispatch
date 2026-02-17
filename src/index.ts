@@ -73,12 +73,15 @@ const knownCommands = new Set(['init', 'prep', 'run', 'loop', 'status', 'log', '
 async function main() {
   const args = process.argv.slice(2);
 
-  // If first arg isn't a known command, treat as bare prompt
-  if (args.length > 0 && !args[0].startsWith('-') && !knownCommands.has(args[0])) {
-    const prompt = args.join(' ');
+  // If first non-flag arg isn't a known command, treat as bare prompt
+  const nonFlagArgs = args.filter((a) => !a.startsWith('-'));
+  if (nonFlagArgs.length > 0 && !knownCommands.has(nonFlagArgs[0])) {
+    // Parse flags before extracting prompt
+    program.parse(process.argv);
+    const globalOpts = program.opts();
+    const prompt = nonFlagArgs.join(' ');
     const { prepCommand } = await import('./cli/commands/prep.js');
     const { loopCommand } = await import('./cli/commands/loop.js');
-    const globalOpts = program.opts();
     await prepCommand(prompt, globalOpts);
     await loopCommand(globalOpts);
     return;

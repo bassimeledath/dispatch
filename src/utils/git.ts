@@ -1,7 +1,85 @@
+import { lstatSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { simpleGit, type SimpleGit } from 'simple-git';
 
 function git(cwd: string): SimpleGit {
   return simpleGit(cwd);
+}
+
+/** File metadata snapshot for change detection. */
+export interface FileSnapshot {
+  [relativePath: string]: { mtimeMs: number; size: number };
+}
+
+const SNAPSHOT_IGNORE = new Set(['.git', 'node_modules', '.mise', '__pycache__', '.venv', 'dist', '.next']);
+
+/**
+ * Take a snapshot of file metadata in the working tree.
+ * Call this BEFORE task execution to establish a baseline.
+ */
+export function snapshot(cwd: string): FileSnapshot {
+  const snap: FileSnapshot = {};
+  walkDir(cwd, cwd, snap);
+  return snap;
+}
+
+function walkDir(root: string, dir: string, snap: FileSnapshot): void {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (SNAPSHOT_IGNORE.has(entry.name)) continue;
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkDir(root, fullPath, snap);
+    } else if (entry.isFile()) {
+      try {
+        const stat = lstatSync(fullPath);
+        snap[relative(root, fullPath)] = { mtimeMs: stat.mtimeMs, size: stat.size };
+      } catch {
+        // skip files we can't stat
+      }
+    }
+  }
+}
+
+/**
+ * Compare current file state against a previous snapshot.
+ * Returns list of files that were added or modified.
+ */
+export function changedFiles(cwd: string, before: FileSnapshot): string[] {
+  const after: FileSnapshot = {};
+  walkDir(cwd, cwd, after);
+  const changed: string[] = [];
+
+  // New or modified files
+  for (const [path, stat] of Object.entries(after)) {
+    const prev = before[path];
+    if (!prev || prev.mtimeMs !== stat.mtimeMs || prev.size !== stat.size) {
+      changed.push(path);
+    }
+  }
+
+  // Deleted files
+  for (const path of Object.keys(before)) {
+    if (!(path in after)) {
+      changed.push(path);
+    }
+  }
+
+  return changed;
+}
+
+/**
+ * Stage specific files instead of `git add -A`.
+ * Handles both modified/new files (add) and deleted files (rm).
+ */
+export async function stageFiles(cwd: string, files: string[]): Promise<void> {
+  if (files.length === 0) return;
+  await git(cwd).add(files);
 }
 
 export async function isRepo(cwd: string): Promise<boolean> {

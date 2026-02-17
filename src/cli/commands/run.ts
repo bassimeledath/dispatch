@@ -125,6 +125,9 @@ export async function executeTask(
     OWNED_PATHS: task.owned_paths.join(', ') || '_No restrictions._',
   });
 
+  // Snapshot working tree before execution for targeted staging
+  const beforeSnapshot = git.snapshot(projectDir);
+
   // Run the engine
   const engine = createEngine(station.engine.name);
   const spin = output.spinner(`Executing task ${task.id} (attempt ${attempt})...`);
@@ -184,10 +187,10 @@ export async function executeTask(
     }
   }
 
-  // Check for file changes and commit
-  const hasChanges = await git.hasChanges(projectDir);
-  if (hasChanges) {
-    await git.stageAll(projectDir);
+  // Stage only files changed by this task (not unrelated working tree changes)
+  const changed = git.changedFiles(projectDir, beforeSnapshot);
+  if (changed.length > 0) {
+    await git.stageFiles(projectDir, changed);
     await git.miseCommit(projectDir, task.id, task.title, runId);
     output.ok(`Committed changes for task ${task.id}`);
   }

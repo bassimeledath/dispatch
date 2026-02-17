@@ -12,6 +12,7 @@ import { TaskStatus } from '../../types/status.js';
 
 export interface PrepOptions {
   verbose?: boolean;
+  yes?: boolean;
   prd?: string;
 }
 
@@ -108,8 +109,8 @@ export async function prepCommand(
   console.log('');
   output.info(`Total: ${board.tasks.length} tasks in ${groups.length} groups`);
 
-  // In attended mode, ask for approval
-  if (station.mode.attended) {
+  // In attended mode, ask for approval (unless --yes)
+  if (station.mode.attended && !opts.yes) {
     const approved = await output.confirm('Approve this plan?');
     if (!approved) {
       output.info('Plan rejected. Modify and re-run `mise prep`.');
