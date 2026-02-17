@@ -50,6 +50,7 @@ mise "add user authentication with JWT"
 
 | Flag | Description |
 |------|-------------|
+| `-y, --yes` | Auto-approve plans without prompting |
 | `--verbose` | Verbose output (show engine output) |
 | `--prd <file>` | Path to a PRD file for planning |
 | `--task <id>` | Run a specific task (with `mise run`) |
