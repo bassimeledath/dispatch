@@ -4,11 +4,20 @@ import type { Engine, EngineResult, EngineRunOptions, TokenUsage } from './types
 export class ClaudeEngine implements Engine {
   name = 'claude';
 
+  /** Build a clean env that allows spawning claude without nesting errors. */
+  private cleanEnv(): NodeJS.ProcessEnv {
+    const env = { ...process.env };
+    // Remove vars that cause "nested session" detection
+    delete env.CLAUDE_CODE_ENTRYPOINT;
+    delete env.CLAUDECODE;
+    return env;
+  }
+
   async check(): Promise<boolean> {
     return new Promise((resolve) => {
       const child = spawn('claude', ['--version'], {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: '' },
+        env: this.cleanEnv(),
       });
       child.on('close', (code) => resolve(code === 0));
       child.on('error', () => resolve(false));
@@ -16,7 +25,7 @@ export class ClaudeEngine implements Engine {
   }
 
   async run(prompt: string, opts: EngineRunOptions): Promise<EngineResult> {
-    const args: string[] = ['-p', '--output-format', 'stream-json'];
+    const args: string[] = ['-p', '--verbose', '--output-format', 'stream-json'];
 
     if (opts.allowedTools && opts.allowedTools.length > 0) {
       args.push('--allowedTools', ...opts.allowedTools);
@@ -37,7 +46,7 @@ export class ClaudeEngine implements Engine {
       const child = spawn('claude', args, {
         cwd: opts.cwd,
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: '' },
+        env: this.cleanEnv(),
       });
 
       opts.onChildSpawned?.(child);

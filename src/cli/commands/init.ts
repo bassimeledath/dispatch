@@ -44,7 +44,25 @@ export async function initCommand(opts: InitOptions): Promise<void> {
   }
   output.ok('Created .mise/ directory structure');
 
-  // Generate station.yaml
+  // Validate backpressure commands before writing config
+  output.info('Verifying backpressure commands...');
+  const bp = detected.backpressure;
+  const verifiedBp: Record<string, string | undefined> = {};
+  for (const [name, cmd] of Object.entries(bp)) {
+    if (!cmd) {
+      output.dim(`${name}: not detected`);
+      continue;
+    }
+    try {
+      execSync(cmd, { cwd: projectDir, stdio: 'ignore', timeout: 30000 });
+      output.ok(`${name}: \`${cmd}\` verified`);
+      verifiedBp[name] = cmd;
+    } catch {
+      output.warn(`${name}: \`${cmd}\` failed — disabled (run \`mise init\` again after setup)`);
+    }
+  }
+
+  // Generate station.yaml (only includes verified backpressure commands)
   const station: Station = {
     project: {
       name: detected.name,
@@ -53,10 +71,10 @@ export async function initCommand(opts: InitOptions): Promise<void> {
       package_manager: detected.packageManager ?? undefined,
     },
     backpressure: {
-      test: detected.backpressure.test ?? undefined,
-      lint: detected.backpressure.lint ?? undefined,
-      build: detected.backpressure.build ?? undefined,
-      typecheck: detected.backpressure.typecheck ?? undefined,
+      test: verifiedBp.test,
+      lint: verifiedBp.lint,
+      build: verifiedBp.build,
+      typecheck: verifiedBp.typecheck,
     },
     rules: [],
     boundaries: [],
@@ -82,22 +100,6 @@ export async function initCommand(opts: InitOptions): Promise<void> {
   const stationPath = join(miseDir, 'station.yaml');
   writeFileSync(stationPath, stringifyYaml(station, { lineWidth: 120 }), 'utf-8');
   output.ok('Generated station.yaml');
-
-  // Validate backpressure commands
-  output.info('Verifying backpressure commands...');
-  const bp = detected.backpressure;
-  for (const [name, cmd] of Object.entries(bp)) {
-    if (!cmd) {
-      output.dim(`${name}: not detected`);
-      continue;
-    }
-    try {
-      execSync(cmd, { cwd: projectDir, stdio: 'ignore', timeout: 30000 });
-      output.ok(`${name}: \`${cmd}\` verified`);
-    } catch {
-      output.warn(`${name}: \`${cmd}\` failed (may need setup)`);
-    }
-  }
 
   // Check engine availability
   output.info('Checking engine...');
