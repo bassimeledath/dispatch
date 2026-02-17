@@ -42,6 +42,7 @@ After changes, `npm run build` is required. Global installs via `npm install -g 
 
 - **Fresh context per task**: No conversation history. Each task gets a clean prompt with board state from disk.
 - **Backpressure**: After each task, runs test/lint/build/typecheck. Only commands that pass during `init` are enforced.
+- **Targeted git staging**: Before executing a task, mise snapshots file metadata (mtime, size). After execution, it stages only files that changed during the task, avoiding unrelated working tree changes. Uses `git.snapshot()`, `git.changedFiles()`, and `git.stageFiles()`.
 - **Engine env**: When spawning Claude CLI, must clear `CLAUDE_CODE_ENTRYPOINT` and `CLAUDECODE` env vars to avoid nested-session detection.
 - **Commit format**: `mise(<task-id>): <title>`
 
