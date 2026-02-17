@@ -44,6 +44,7 @@ mise "add user authentication with JWT"
 | `mise status` | Show the current board status. |
 | `mise log` | Show the progress log with cost tracking. |
 | `mise "prompt"` | Shorthand: runs `prep` then `loop`. |
+| `mise feedback "msg"` | Submit feedback as a GitHub issue. Requires `gh` CLI. |
 
 ## Flags
 
