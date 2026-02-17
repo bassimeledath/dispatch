@@ -1,0 +1,31 @@
+project:
+  name: "{PROJECT_NAME}"
+  language: "{LANGUAGE}"
+  framework: "{FRAMEWORK}"
+  package_manager: "{PACKAGE_MANAGER}"
+
+backpressure:
+  test: "{TEST_CMD}"
+  lint: "{LINT_CMD}"
+  build: "{BUILD_CMD}"
+  typecheck: "{TYPECHECK_CMD}"
+
+rules: []
+
+boundaries: []
+
+engine:
+  name: claude
+  model: sonnet
+  allowed_tools: []
+
+mode:
+  attended: true
+  parallel: "off"
+  max_parallel: 4
+  max_retries: 2
+  skip_failures: false
+
+runtime:
+  heartbeat_interval_ms: 30000
+  stale_threshold_ms: 120000
