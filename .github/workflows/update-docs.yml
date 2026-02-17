@@ -6,8 +6,8 @@ on:
 
 jobs:
   update-docs:
-    # Skip if this push came from the docs bot PR being merged
-    if: "!contains(github.event.head_commit.message, '[docs-bot]')"
+    # Skip commits made by this workflow to prevent infinite loops
+    if: "!startsWith(github.event.head_commit.message, 'docs: auto-update')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
