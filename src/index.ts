@@ -59,8 +59,16 @@ program
     await logCommand({ ...program.opts(), ...opts });
   });
 
+program
+  .command('feedback <message>')
+  .description('Submit feedback as a GitHub issue')
+  .action(async (message) => {
+    const { feedbackCommand } = await import('./cli/commands/feedback.js');
+    await feedbackCommand(message);
+  });
+
 // Handle bare prompt: `mise "add a button"` or `mise --prd file.md`
-const knownCommands = new Set(['init', 'prep', 'run', 'loop', 'status', 'log', 'help']);
+const knownCommands = new Set(['init', 'prep', 'run', 'loop', 'status', 'log', 'feedback', 'help']);
 
 async function main() {
   const args = process.argv.slice(2);
