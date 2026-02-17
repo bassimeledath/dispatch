@@ -45,6 +45,10 @@ After changes, `npm run build` is required. Global installs via `npm install -g 
 - **Engine env**: When spawning Claude CLI, must clear `CLAUDE_CODE_ENTRYPOINT` and `CLAUDECODE` env vars to avoid nested-session detection.
 - **Commit format**: `mise(<task-id>): <title>`
 
+## CI / Automation
+
+- **Auto docs update** (`.github/workflows/update-docs.yml`): On every merge to `main`, a GitHub Action diffs the merge commit, passes it to Claude, and opens a PR with any needed updates to README.md and/or CLAUDE.md. Uses `[docs-bot]` in the commit message to prevent infinite loops. Requires `ANTHROPIC_API_KEY` repo secret.
+
 ## Repo
 
 GitHub: `bassimeledath/mise`

@@ -1,0 +1,124 @@
+name: Update Docs on Merge
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  update-docs:
+    # Skip if this push came from the docs bot PR being merged
+    if: "!contains(github.event.head_commit.message, '[docs-bot]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get diff from merge
+        id: diff
+        run: |
+          DIFF=$(git diff HEAD~1..HEAD -- ':!node_modules' ':!dist' ':!*.lock' \
+            ':!.github' | head -c 50000)
+          if [ -z "$DIFF" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "No code changes detected."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "$DIFF" > /tmp/merge-diff.txt
+          fi
+
+      - name: Setup Node.js
+        if: steps.diff.outputs.skip == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        if: steps.diff.outputs.skip == 'false'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run Claude to update docs
+        if: steps.diff.outputs.skip == 'false'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          DIFF=$(cat /tmp/merge-diff.txt)
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+
+          claude -p --model sonnet --dangerously-skip-permissions "$(cat <<PROMPT
+          You are a documentation maintenance bot for the mise CLI project.
+
+          The following diff was just merged to main. Review it and determine if
+          README.md and/or CLAUDE.md need to be updated to reflect the changes.
+
+          Updates to consider:
+          - New commands → add to Commands table in README.md
+          - New flags → add to Flags table in README.md
+          - New config options → update Configuration section in README.md
+          - Architecture changes → update Architecture section in CLAUDE.md
+          - New key patterns or conventions → update Key Patterns in CLAUDE.md
+          - New CI/automation → update CI section in CLAUDE.md
+          - Changed directory structure → update .mise/ directory structure in README.md
+
+          Rules:
+          - ONLY update README.md and CLAUDE.md. Do not create or modify any other files.
+          - If no updates are needed, make zero file changes.
+          - Keep existing style and formatting. Do not rewrite sections that don't need changes.
+          - Be precise — only add/modify what the diff actually introduced.
+
+          Merge commit message:
+          $COMMIT_MSG
+
+          Diff:
+          $DIFF
+          PROMPT
+          )"
+
+      - name: Check for changes
+        if: steps.diff.outputs.skip == 'false'
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No doc updates needed."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected:"
+            git diff --stat
+          fi
+
+      - name: Create PR with doc updates
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="docs/auto-update-$(date +%Y%m%d-%H%M%S)"
+          git config user.name "mise-docs-bot"
+          git config user.email "mise-docs-bot@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add README.md CLAUDE.md
+          git commit -m "docs: auto-update from merge [docs-bot]
+
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push -u origin "$BRANCH"
+
+          MERGE_SHA=$(git rev-parse HEAD~1)
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "docs: auto-update for $(git log main -1 --pretty=%h)" \
+            --body "$(cat <<EOF
+          ## Summary
+          Automated doc updates triggered by merge [\`${MERGE_SHA:0:7}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${MERGE_SHA}).
+
+          Review the changes to README.md and/or CLAUDE.md to make sure they look correct.
+
+          ---
+          *Created by the docs-bot workflow.*
+          EOF
+          )"
