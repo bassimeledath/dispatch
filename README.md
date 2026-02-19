@@ -1,156 +1,141 @@
-# Mise
+# Manager
 
-A CLI orchestrator for long-running coding agents. Mise breaks large tasks into structured plans, executes them through AI coding agents (currently Claude Code), and verifies results with backpressure checks -- all with deterministic, non-AI orchestration logic.
+A CLI for delegating coding tasks to background AI workers. Manager classifies tasks by complexity, spawns isolated workers in git worktrees, runs a post-implementation lint step, and opens PRs — all without blocking your terminal.
 
 ## Prerequisites
 
 - **Node.js 18+**
-- **git 2.15+** (worktree support for parallel execution)
-- **Claude CLI** ([Claude Code](https://docs.anthropic.com/en/docs/claude-code))
+- **git 2.15+** (worktree support)
+- **Claude CLI** ([Claude Code](https://docs.anthropic.com/en/docs/claude-code)) or **Cursor CLI**
+- **gh CLI** (for automatic PR creation)
 
 ## Installation
 
 ```bash
-npm install -g mise-cli
+npm install -g manager-cli
 ```
 
 ## Quickstart
 
 ```bash
-# Initialize in your project
-mise init
+# Dispatch a quick fix (runs in-place, no branch)
+manager dispatch "fix the typo in the header" --tier quick
 
-# Plan tasks from a prompt
-mise prep "add user authentication with JWT"
+# Dispatch a focused feature (worktree + PR)
+manager dispatch "add input validation to the signup form" --tier s1
 
-# Execute all tasks
-mise loop
-```
+# Dispatch a complex change (worktree + Opus reviewer + PR)
+manager dispatch "refactor the auth module to use JWT" --tier s2
 
-Or do it all at once:
+# Check on running tasks
+manager status
 
-```bash
-mise "add user authentication with JWT"
+# Stream a worker's log
+manager log <id>
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `mise init` | Initialize mise in the current project. Detects language, framework, and backpressure commands. |
-| `mise prep [prompt]` | Plan tasks from a prompt or PRD file. Generates a task board via the AI engine. |
-| `mise run` | Execute the next ready task. |
-| `mise loop` | Execute all ready tasks in sequence (or parallel if configured). |
-| `mise status` | Show the current board status. |
-| `mise log` | Show the progress log with cost tracking. |
-| `mise "prompt"` | Shorthand: runs `prep` then `loop`. |
-| `mise feedback "msg"` | Submit feedback as a GitHub issue. Requires `gh` CLI. |
+| `manager dispatch <description>` | Dispatch a task to a background worker. |
+| `manager status` | Show all tasks and their current status. |
+| `manager questions` | List tasks waiting for user input. |
+| `manager answer <id> <text>` | Answer a worker's question to unblock it. |
+| `manager log <id>` | Stream the worker log for a task. |
+| `manager cancel <id>` | Cancel a running task and clean up. |
+| `manager config list` | Show current model and engine configuration. |
+| `manager config get <key>` | Get a specific config value. |
+| `manager config set <key> <value>` | Set a config value. |
 
-## Flags
+## Dispatch Flags
 
 | Flag | Description |
 |------|-------------|
-| `-y, --yes` | Auto-approve plans without prompting |
-| `--verbose` | Verbose output (show engine output) |
-| `--prd <file>` | Path to a PRD file for planning |
-| `--task <id>` | Run a specific task (with `mise run`) |
-| `--retries <n>` | Max retries on backpressure failure |
-| `--skip-failures` | Skip failed tasks and continue (with `mise loop`) |
-| `--max-retries <n>` | Max retries per task (with `mise loop`) |
-| `--no-color` | Disable terminal colors |
+| `--tier <tier>` | Worker tier: `quick`, `s1`, or `s2` (default: `s1`) |
+| `--model <model>` | Override the implementer model for this task |
+| `--engine <engine>` | Override the engine for this task (`claude`, `cursor`) |
+
+## Tiers
+
+| Tier | Description | Engine Behavior |
+|------|-------------|-----------------|
+| `quick` | Single-line fix, typo, trivial copy change. Runs in-place (no branch). | Commits directly to current branch. |
+| `s1` | Bug fix, simple feature, focused refactor. | Runs in a git worktree, post-implementation lint/fix step, opens a PR. |
+| `s2` | Multi-file feature, architectural change. | Same as s1, plus an Opus reviewer pass with up to 2 revision cycles before the PR. |
 
 ## Configuration
 
-After `mise init`, edit `.mise/station.yaml`:
+Manager stores config globally at `~/.manager/config.json`. Use `manager config` to read and update it.
 
-```yaml
-project:
-  name: my-project
-  language: typescript
-  framework: react
-  package_manager: npm
-
-backpressure:
-  test: npm run test
-  lint: npm run lint
-  build: npm run build
-  typecheck: npx tsc --noEmit
-
-rules:
-  - "Use functional components"
-  - "Write tests for new features"
-
-boundaries:
-  - "Do not modify the auth module"
-
-engine:
-  name: claude
-  model: sonnet
-  max_budget_usd: 5.00
-  allowed_tools: []
-
-mode:
-  attended: true          # Ask for approval before executing
-  parallel: "off"         # "off", "auto", or a number
-  max_parallel: 4
-  max_retries: 2
-  skip_failures: false
-
-runtime:
-  heartbeat_interval_ms: 30000
-  stale_threshold_ms: 120000
+```bash
+manager config list                                    # Show all settings
+manager config get models.s1                          # Get a specific value
+manager config set models.s1 claude-sonnet-4-6        # Set the S1 model
+manager config set models.reviewer claude-opus-4-6    # Set the reviewer model
+manager config set engine cursor                       # Switch to Cursor engine
 ```
 
-## `.mise/` Directory Structure
+**Config keys:**
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `engine` | `claude` | Default engine (`claude` or `cursor`) |
+| `models.quick` | `claude-haiku-4-5` | Model for quick tasks |
+| `models.s1` | `claude-sonnet-4-6` | Model for s1 tasks |
+| `models.s2` | `claude-sonnet-4-6` | Implementer model for s2 tasks |
+| `models.reviewer` | `claude-opus-4-6` | Reviewer model for s2 tasks |
+
+Per-dispatch overrides take precedence over global config:
+
+```bash
+manager dispatch "add auth" --tier s1 --model claude-opus-4-6 --engine cursor
+```
+
+## User Preferences
+
+Workers read `~/.manager/prefs.md` on each run. Edit this file to set standing preferences:
 
 ```
-.mise/
-  station.yaml          # Project configuration
-  board.yaml            # Task board (generated by prep)
-  brief.md              # Current status brief (regenerated after each task)
-  toc.md                # Table of contents for the project
-  toc.meta.yaml         # TOC fingerprints for drift detection
-  progress.log          # Append-only execution log with cost tracking
-  run.lock              # Lock file to prevent concurrent runs
-  status/               # Per-task status files
-    <task-id>.yaml
-  evidence/             # Per-task evidence files (written by agent)
-    <task-id>.md
-  clarifications/       # Per-task clarification Q&A
-    <task-id>.md
-  logs/                 # Per-task backpressure logs
-    <task-id>/
-      test.log
-      lint.log
+Prefer small, focused PRs.
+Always add tests for new features.
+Use TypeScript strict mode.
 ```
 
 ## How It Works
 
-1. **`mise init`** detects your project's language, framework, package manager, and backpressure commands. Creates the `.mise/` directory.
+1. **`manager dispatch`** assigns a task ID, creates a state entry, and spawns a detached worker process. Your terminal is free immediately.
 
-2. **`mise prep`** sends your prompt (or PRD) to the AI engine along with a table of contents and project rules. The engine returns a structured task board with groups, dependencies, and acceptance criteria.
+2. **Workers** run in the background:
+   - **quick**: Runs the AI in the current directory. Stages and commits any changes.
+   - **s1**: Creates a git worktree on a `manager/task-<id>` branch. Runs the AI, then runs a lint/typecheck step — if lint fails, the AI is re-invoked to fix the errors. Commits, then opens a PR.
+   - **s2**: Same as s1, but after implementation adds a reviewer pass (using the reviewer model). If the reviewer requests revisions, the implementer is re-invoked with feedback (up to 2 cycles). Then opens a PR.
 
-3. **`mise loop`** executes tasks in dependency order:
-   - Checks readiness (env vars, services)
-   - Sends a focused prompt for each task
-   - Commits changes with `mise(<task-id>): <title>` format
-   - Runs backpressure checks (test, lint, build, typecheck)
-   - Retries on failure, up to the configured limit
-   - Regenerates the brief after each completion
-   - Supports parallel execution via git worktrees
+3. **Questions**: If a worker is genuinely blocked, it emits a JSON question marker. The worker pauses and waits. Use `manager questions` to see pending questions and `manager answer <id> "<text>"` to unblock.
 
-4. **Crash recovery**: If mise crashes, the lock file's heartbeat goes stale. The next run detects this, resets in-progress tasks to pending, and continues.
+4. **Commit format**: `manager(<task-id>): <description>`
 
-## Parallel Execution
+## `.manager/` Directory Structure
 
-Set `mode.parallel` to `"auto"` or a number in `station.yaml`. Mise will:
+```
+.manager/
+  state.json           # Task state (all tasks, statuses, metadata)
+  tasks/
+    <task-id>/
+      log.txt          # Full worker output log
+```
 
-- Select tasks from the lowest incomplete group
-- Only parallelize tasks marked `parallel_safe: true`
-- Verify `owned_paths` don't overlap between concurrent tasks
-- Execute each task in a git worktree
-- Merge branches back in deterministic order
-- Fall back to sequential on merge conflicts
+## /manager Slash Command (Claude Code)
+
+Install the `/manager` skill in Claude Code to activate Manager Mode. In this mode, Claude acts as a delegation layer — classifying your requests and dispatching them to workers rather than implementing anything directly.
+
+To install, copy `templates/manager.md` from this repo to your Claude Code commands directory:
+
+```bash
+cp templates/manager.md ~/.claude/commands/manager.md
+```
+
+Then use `/manager` in any Claude Code session to activate delegation mode.
 
 ## License
 
