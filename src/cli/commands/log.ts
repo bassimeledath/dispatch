@@ -1,36 +1,22 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import * as output from '../../utils/output.js';
-import { getMiseDir, isInitialized } from '../../utils/config.js';
-import { recentEntries, totalCost } from '../../core/progress.js';
+import { getMiseDir, getTask } from '../../core/state.js';
 
-export interface LogOptions {
-  verbose?: boolean;
-  n?: string;
-}
+export async function logCommand(taskId: string): Promise<void> {
+  const miseDir = getMiseDir(process.cwd());
+  const task = getTask(miseDir, taskId);
 
-export async function logCommand(opts: LogOptions): Promise<void> {
-  const projectDir = process.cwd();
-  if (!isInitialized(projectDir)) {
-    output.error('Not a mise project. Run `mise init` first.');
+  if (!task) {
+    output.error(`Task ${taskId} not found.`);
     process.exit(1);
   }
 
-  const miseDir = getMiseDir(projectDir);
-  const n = parseInt(opts.n ?? '20', 10);
-  const entries = recentEntries(miseDir, n);
-
-  if (entries.length === 0) {
-    output.info('No progress entries yet.');
+  const logPath = join(miseDir, 'tasks', taskId, 'log.txt');
+  if (!existsSync(logPath)) {
+    output.info(`No log yet for task ${taskId} (status: ${task.status})`);
     return;
   }
 
-  output.header('Progress Log');
-  for (const entry of entries) {
-    console.log(`  ${entry}`);
-  }
-
-  const cost = totalCost(miseDir);
-  if (cost > 0) {
-    console.log('');
-    output.info(`Total cost: $${cost.toFixed(4)}`);
-  }
+  process.stdout.write(readFileSync(logPath, 'utf-8'));
 }

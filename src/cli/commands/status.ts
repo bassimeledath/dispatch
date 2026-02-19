@@ -1,45 +1,43 @@
 import * as output from '../../utils/output.js';
-import { loadBoard } from '../../core/board.js';
-import { getMiseDir, isInitialized } from '../../utils/config.js';
+import { getMiseDir, getAllTasks } from '../../core/state.js';
 
-export interface StatusOptions {
-  verbose?: boolean;
+function statusIcon(status: string): string {
+  switch (status) {
+    case 'complete':
+      return '✓';
+    case 'failed':
+      return '✗';
+    case 'running':
+      return '●';
+    case 'waiting':
+      return '?';
+    case 'cancelled':
+      return '○';
+    default:
+      return '·';
+  }
 }
 
-export async function statusCommand(_opts: StatusOptions): Promise<void> {
-  const projectDir = process.cwd();
-  if (!isInitialized(projectDir)) {
-    output.error('Not a mise project. Run `mise init` first.');
-    process.exit(1);
+export async function statusCommand(): Promise<void> {
+  const miseDir = getMiseDir(process.cwd());
+  const tasks = getAllTasks(miseDir);
+
+  if (tasks.length === 0) {
+    output.info('No tasks dispatched yet. Run `manager dispatch "<description>"` to start.');
+    return;
   }
 
-  const miseDir = getMiseDir(projectDir);
-  let board;
-  try {
-    board = loadBoard(miseDir);
-  } catch {
-    output.error('No board found. Run `mise prep` first.');
-    process.exit(1);
-  }
-
-  output.header('Board Status');
-
-  const counts: Record<string, number> = {};
-  for (const task of board.tasks) {
-    counts[task.status] = (counts[task.status] ?? 0) + 1;
-  }
-
-  const rows: string[][] = [['Status', 'Count']];
-  for (const [status, count] of Object.entries(counts)) {
-    rows.push([status, String(count)]);
+  output.header('Manager Tasks');
+  const rows: string[][] = [['ID', 'Tier', 'Status', 'Description']];
+  for (const task of tasks.sort((a, b) => b.created.localeCompare(a.created))) {
+    const icon = statusIcon(task.status);
+    rows.push([task.id, task.tier, `${icon} ${task.status}`, task.description.slice(0, 50)]);
   }
   output.table(rows);
 
-  console.log('');
-  output.header('Tasks');
-  const taskRows: string[][] = [['ID', 'Title', 'Status', 'Group', 'Size']];
-  for (const task of board.tasks) {
-    taskRows.push([task.id, task.title, task.status, String(task.group), task.size]);
+  const waiting = tasks.filter((t) => t.status === 'waiting');
+  if (waiting.length > 0) {
+    console.log('');
+    output.warn(`${waiting.length} task(s) waiting for input — run \`manager questions\``);
   }
-  output.table(taskRows);
 }

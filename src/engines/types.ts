@@ -11,6 +11,8 @@ export interface EngineRunOptions {
   systemPrompt?: string;
   maxBudgetUsd?: number;
   verbose?: boolean;
+  maxTurns?: number;
+  jsonSchema?: object;
   onChildSpawned?: (child: import('node:child_process').ChildProcess) => void;
 }
 
@@ -19,6 +21,7 @@ export interface EngineResult {
   stdout: string;
   stderr: string;
   tokens?: TokenUsage;
+  structuredOutput?: unknown;
 }
 
 export interface Engine {

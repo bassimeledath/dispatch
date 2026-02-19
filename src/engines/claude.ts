@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { Engine, EngineResult, EngineRunOptions, TokenUsage } from './types.js';
+import { CursorEngine } from './cursor.js';
 
 export class ClaudeEngine implements Engine {
   name = 'claude';
@@ -39,6 +40,12 @@ export class ClaudeEngine implements Engine {
     if (opts.maxBudgetUsd) {
       args.push('--max-budget-usd', String(opts.maxBudgetUsd));
     }
+    if (opts.maxTurns) {
+      args.push('--max-turns', String(opts.maxTurns));
+    }
+    if (opts.jsonSchema) {
+      args.push('--json-schema', JSON.stringify(opts.jsonSchema));
+    }
 
     args.push('--dangerously-skip-permissions');
 
@@ -76,12 +83,14 @@ export class ClaudeEngine implements Engine {
         const stdout = Buffer.concat(stdoutChunks).toString('utf-8');
         const stderr = Buffer.concat(stderrChunks).toString('utf-8');
         const tokens = this.parseTokens(stdout);
+        const structuredOutput = this.parseStructuredOutput(stdout);
 
         resolve({
           exitCode: code ?? 1,
           stdout,
           stderr,
           tokens: tokens ?? undefined,
+          structuredOutput: structuredOutput ?? undefined,
         });
       });
 
@@ -115,11 +124,28 @@ export class ClaudeEngine implements Engine {
       return null;
     }
   }
+
+  parseStructuredOutput(output: string): unknown {
+    try {
+      const lines = output.trim().split('\n');
+      for (let i = lines.length - 1; i >= 0; i--) {
+        try {
+          const parsed = JSON.parse(lines[i]);
+          if (parsed.type === 'result' && parsed.structured_output != null) {
+            return parsed.structured_output;
+          }
+        } catch {
+          continue;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export function createEngine(name: string): Engine {
-  if (name === 'claude') {
-    return new ClaudeEngine();
-  }
-  throw new Error(`Unknown engine: ${name}. Only "claude" is supported.`);
+  if (name === 'cursor') return new CursorEngine();
+  return new ClaudeEngine();
 }

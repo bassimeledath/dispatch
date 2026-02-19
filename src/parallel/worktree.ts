@@ -7,7 +7,7 @@ function worktreePath(miseDir: string, taskId: string): string {
 }
 
 function branchName(taskId: string): string {
-  return `mise/task-${taskId}`;
+  return `manager/task-${taskId}`;
 }
 
 export async function create(

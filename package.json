@@ -1,10 +1,10 @@
 {
-  "name": "mise-cli",
-  "version": "0.2.0",
+  "name": "manager-cli",
+  "version": "0.3.0",
   "description": "CLI orchestrator for long-running coding agents",
   "type": "module",
   "bin": {
-    "mise": "./bin/mise"
+    "manager": "./bin/manager"
   },
   "scripts": {
     "build": "tsc",

@@ -1,114 +1,88 @@
-import { createProgram } from './cli/args.js';
+import { Command } from 'commander';
 
-const program = createProgram();
-
-// Subcommands will be registered by their respective modules
-// Stub registrations for now — filled in by later tasks
+const program = new Command();
 
 program
-  .command('init')
-  .description('Initialize mise in the current project')
-  .action(async () => {
-    const { initCommand } = await import('./cli/commands/init.js');
-    await initCommand(program.opts());
-  });
+  .name('manager')
+  .description('Parallel coding delegation system')
+  .version('0.3.0');
 
 program
-  .command('prep [prompt]')
-  .description('Plan tasks from a prompt or PRD')
-  .option('--prd <file>', 'path to PRD file')
-  .action(async (prompt, opts) => {
-    const { prepCommand } = await import('./cli/commands/prep.js');
-    await prepCommand(prompt, { ...program.opts(), ...opts });
-  });
-
-program
-  .command('run')
-  .description('Execute the next ready task')
-  .option('--task <id>', 'run a specific task')
-  .option('--retries <n>', 'max retries on backpressure failure', '2')
-  .action(async (opts) => {
-    const { runCommand } = await import('./cli/commands/run.js');
-    await runCommand({ ...program.opts(), ...opts });
-  });
-
-program
-  .command('loop')
-  .description('Execute all ready tasks in sequence')
-  .option('--skip-failures', 'skip failed tasks and continue')
-  .option('--max-retries <n>', 'max retries per task', '2')
-  .action(async (opts) => {
-    const { loopCommand } = await import('./cli/commands/loop.js');
-    await loopCommand({ ...program.opts(), ...opts });
+  .command('dispatch <description>')
+  .description('Dispatch a task to a background worker')
+  .option('--tier <tier>', 'worker tier: quick, s1, or s2', 's1')
+  .option('--model <model>', 'override implementer model for this task')
+  .option('--engine <engine>', 'override engine for this task (claude, cursor)')
+  .action(async (description, opts) => {
+    const { dispatchCommand } = await import('./cli/commands/dispatch.js');
+    await dispatchCommand(description, opts);
   });
 
 program
   .command('status')
-  .description('Show board status')
+  .description('Show all tasks')
   .action(async () => {
     const { statusCommand } = await import('./cli/commands/status.js');
-    await statusCommand(program.opts());
+    await statusCommand();
   });
 
 program
-  .command('log')
-  .description('Show progress log')
-  .option('-n <lines>', 'number of recent entries', '20')
-  .action(async (opts) => {
+  .command('questions')
+  .description('List tasks waiting for input')
+  .action(async () => {
+    const { questionsCommand } = await import('./cli/commands/questions.js');
+    await questionsCommand();
+  });
+
+program
+  .command('answer <id> <text>')
+  .description('Answer a worker question to unblock it')
+  .action(async (id, text) => {
+    const { answerCommand } = await import('./cli/commands/answer.js');
+    await answerCommand(id, text);
+  });
+
+program
+  .command('log <id>')
+  .description('Show worker log for a task')
+  .action(async (id) => {
     const { logCommand } = await import('./cli/commands/log.js');
-    await logCommand({ ...program.opts(), ...opts });
+    await logCommand(id);
   });
 
 program
-  .command('feedback <message>')
-  .description('Submit feedback as a GitHub issue')
-  .action(async (message) => {
-    const { feedbackCommand } = await import('./cli/commands/feedback.js');
-    await feedbackCommand(message);
+  .command('cancel <id>')
+  .description('Cancel a running task')
+  .action(async (id) => {
+    const { cancelCommand } = await import('./cli/commands/cancel.js');
+    await cancelCommand(id);
   });
 
-// Handle bare prompt: `mise "add a button"` or `mise --prd file.md`
-const knownCommands = new Set(['init', 'prep', 'run', 'loop', 'status', 'log', 'feedback', 'help']);
+program
+  .command('config [action] [key] [value]')
+  .description('Get or set config values (list, get <key>, set <key> <value>)')
+  .action(async (action, key, value) => {
+    const { configCommand } = await import('./cli/commands/config.js');
+    await configCommand(action ?? 'list', key, value);
+  });
+
+// Internal hidden command — spawned as detached worker process
+program
+  .command('_worker <id>', { hidden: true })
+  .action(async (id) => {
+    const { workerCommand } = await import('./cli/commands/worker.js');
+    await workerCommand(id);
+  });
 
 async function main() {
-  const args = process.argv.slice(2);
-
-  // If first non-flag arg isn't a known command, treat as bare prompt
-  const nonFlagArgs = args.filter((a) => !a.startsWith('-'));
-  if (nonFlagArgs.length > 0 && !knownCommands.has(nonFlagArgs[0])) {
-    // Parse flags before extracting prompt
-    program.parse(process.argv);
-    const globalOpts = program.opts();
-    const prompt = nonFlagArgs.join(' ');
-    const { prepCommand } = await import('./cli/commands/prep.js');
-    const { loopCommand } = await import('./cli/commands/loop.js');
-    await prepCommand(prompt, globalOpts);
-    await loopCommand(globalOpts);
+  if (process.argv.slice(2).length === 0) {
+    program.help();
     return;
   }
-
-  // Handle --prd without subcommand
-  if (args.length > 0 && args[0] === '--prd') {
-    program.parse(process.argv);
-    const opts = program.opts();
-    if (opts.prd) {
-      const { prepCommand } = await import('./cli/commands/prep.js');
-      const { loopCommand } = await import('./cli/commands/loop.js');
-      await prepCommand(undefined, opts);
-      await loopCommand(opts);
-      return;
-    }
-  }
-
-  program.parse(process.argv);
-
-  // No args at all: show help
-  if (args.length === 0) {
-    program.help();
-  }
+  await program.parseAsync(process.argv);
 }
 
 main().catch((err) => {
-  console.error(err.message ?? err);
+  console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
