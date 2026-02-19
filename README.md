@@ -1,156 +1,150 @@
-# Mise
+# Manager
 
-A CLI orchestrator for long-running coding agents. Mise breaks large tasks into structured plans, executes them through AI coding agents (currently Claude Code), and verifies results with backpressure checks -- all with deterministic, non-AI orchestration logic.
+A parallel coding delegation system. Manager dispatches tasks to background AI workers, tracks their progress, and surfaces events — all without blocking your terminal.
 
 ## Prerequisites
 
 - **Node.js 18+**
-- **git 2.15+** (worktree support for parallel execution)
+- **git 2.15+** (worktree support for s1/s2 tasks)
 - **Claude CLI** ([Claude Code](https://docs.anthropic.com/en/docs/claude-code))
+- **gh CLI** (for PR creation on s1/s2 tasks)
 
 ## Installation
 
 ```bash
-npm install -g mise-cli
+npm install -g manager-cli
 ```
 
 ## Quickstart
 
 ```bash
-# Initialize in your project
-mise init
+# Dispatch a task to a background worker
+manager dispatch "add input validation to the signup form"
 
-# Plan tasks from a prompt
-mise prep "add user authentication with JWT"
+# Check status of all tasks
+manager status
 
-# Execute all tasks
-mise loop
-```
-
-Or do it all at once:
-
-```bash
-mise "add user authentication with JWT"
+# Read and clear pending events (JSON)
+manager events
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `mise init` | Initialize mise in the current project. Detects language, framework, and backpressure commands. |
-| `mise prep [prompt]` | Plan tasks from a prompt or PRD file. Generates a task board via the AI engine. |
-| `mise run` | Execute the next ready task. |
-| `mise loop` | Execute all ready tasks in sequence (or parallel if configured). |
-| `mise status` | Show the current board status. |
-| `mise log` | Show the progress log with cost tracking. |
-| `mise "prompt"` | Shorthand: runs `prep` then `loop`. |
-| `mise feedback "msg"` | Submit feedback as a GitHub issue. Requires `gh` CLI. |
+| `manager dispatch <description>` | Dispatch a task to a background worker. |
+| `manager status` | Show all tasks and their current status. |
+| `manager questions` | List tasks currently waiting for user input. |
+| `manager answer <id> <text>` | Answer a worker's question to unblock it. |
+| `manager log <id>` | Stream the worker log for a task. |
+| `manager cancel <id>` | Cancel a running task. |
+| `manager events` | Read and clear pending events as a JSON array. |
+| `manager config [action] [key] [value]` | Get or set config values (`list`, `get <key>`, `set <key> <value>`). |
 
-## Flags
+## Flags (dispatch)
 
 | Flag | Description |
 |------|-------------|
-| `-y, --yes` | Auto-approve plans without prompting |
-| `--verbose` | Verbose output (show engine output) |
-| `--prd <file>` | Path to a PRD file for planning |
-| `--task <id>` | Run a specific task (with `mise run`) |
-| `--retries <n>` | Max retries on backpressure failure |
-| `--skip-failures` | Skip failed tasks and continue (with `mise loop`) |
-| `--max-retries <n>` | Max retries per task (with `mise loop`) |
-| `--no-color` | Disable terminal colors |
+| `--tier <tier>` | Worker tier: `quick`, `s1`, or `s2` (default: `s1`) |
+| `--model <model>` | Override the implementer model for this task |
+| `--engine <engine>` | Override the engine: `claude` or `cursor` |
+
+## Worker Tiers
+
+| Tier | Description |
+|------|-------------|
+| `quick` | Fast in-place edit. Commits staged changes directly to the current branch. Only one quick task runs at a time. |
+| `s1` | Full implementation in a git worktree. Pushes a branch and opens a PR. |
+| `s2` | Like s1 but adds a reviewer pass (up to 2 retries) before creating the PR. |
+
+## Events System
+
+Workers emit events to `.manager/events.jsonl` as they run. Use `manager events` to read and clear the queue:
+
+```bash
+manager events
+# outputs a JSON array, e.g.:
+# [
+#   {
+#     "type": "complete",
+#     "taskId": "a1b2c3d4",
+#     "description": "add input validation to the signup form",
+#     "detail": "https://github.com/owner/repo/pull/42",
+#     "timestamp": "2026-02-18T12:00:00.000Z"
+#   }
+# ]
+```
+
+Event types:
+
+| Type | When emitted | `detail` field |
+|------|--------------|----------------|
+| `complete` | Task finished successfully | PR URL (if created), otherwise empty |
+| `failed` | Task encountered an error | Error message |
+| `question` | Worker is blocked waiting for input | The question text |
+
+Events are consumed and cleared atomically — each call to `manager events` returns only new events since the last call. This makes it suitable for polling from scripts or Claude Code hooks.
 
 ## Configuration
 
-After `mise init`, edit `.mise/station.yaml`:
+Config is stored in `~/.manager/config.json`. Use `manager config` to manage it:
 
-```yaml
-project:
-  name: my-project
-  language: typescript
-  framework: react
-  package_manager: npm
-
-backpressure:
-  test: npm run test
-  lint: npm run lint
-  build: npm run build
-  typecheck: npx tsc --noEmit
-
-rules:
-  - "Use functional components"
-  - "Write tests for new features"
-
-boundaries:
-  - "Do not modify the auth module"
-
-engine:
-  name: claude
-  model: sonnet
-  max_budget_usd: 5.00
-  allowed_tools: []
-
-mode:
-  attended: true          # Ask for approval before executing
-  parallel: "off"         # "off", "auto", or a number
-  max_parallel: 4
-  max_retries: 2
-  skip_failures: false
-
-runtime:
-  heartbeat_interval_ms: 30000
-  stale_threshold_ms: 120000
+```bash
+manager config list
+manager config get models.quick
+manager config set models.quick claude-sonnet-4-6
+manager config set engine cursor
 ```
 
-## `.mise/` Directory Structure
+### Default Models
+
+| Tier | Default model |
+|------|---------------|
+| `quick` | `claude-sonnet-4-6` |
+| `s1` | `claude-sonnet-4-6` |
+| `s2` implementer | `claude-sonnet-4-6` |
+| `s2` reviewer | `claude-opus-4-6` |
+
+### Preferences
+
+Create `~/.manager/prefs.md` to inject personal preferences into every worker prompt:
+
+```markdown
+- Always use TypeScript strict mode
+- Prefer named exports over default exports
+- Write tests for new public functions
+```
+
+## `.manager/` Directory Structure
 
 ```
-.mise/
-  station.yaml          # Project configuration
-  board.yaml            # Task board (generated by prep)
-  brief.md              # Current status brief (regenerated after each task)
-  toc.md                # Table of contents for the project
-  toc.meta.yaml         # TOC fingerprints for drift detection
-  progress.log          # Append-only execution log with cost tracking
-  run.lock              # Lock file to prevent concurrent runs
-  status/               # Per-task status files
-    <task-id>.yaml
-  evidence/             # Per-task evidence files (written by agent)
-    <task-id>.md
-  clarifications/       # Per-task clarification Q&A
-    <task-id>.md
-  logs/                 # Per-task backpressure logs
+.manager/
+  state.json            # Task registry (all tasks and their status)
+  events.jsonl          # Pending events queue (consumed by `manager events`)
+  tasks/
     <task-id>/
-      test.log
-      lint.log
+      log.txt           # Full worker log including engine output
 ```
 
 ## How It Works
 
-1. **`mise init`** detects your project's language, framework, package manager, and backpressure commands. Creates the `.mise/` directory.
+1. **`manager dispatch`** creates a task entry in `.manager/state.json`, spawns a detached background worker process, and returns immediately. The terminal is not blocked.
 
-2. **`mise prep`** sends your prompt (or PRD) to the AI engine along with a table of contents and project rules. The engine returns a structured task board with groups, dependencies, and acceptance criteria.
+2. **Workers** run in the background:
+   - `quick` tasks run in the project directory, commit staged changes, and exit.
+   - `s1` and `s2` tasks create a git worktree on a `manager/task-<id>` branch, implement the task, run a lint fix pass, commit, **push the branch**, and open a PR via `gh pr create`.
 
-3. **`mise loop`** executes tasks in dependency order:
-   - Checks readiness (env vars, services)
-   - Sends a focused prompt for each task
-   - Commits changes with `mise(<task-id>): <title>` format
-   - Runs backpressure checks (test, lint, build, typecheck)
-   - Retries on failure, up to the configured limit
-   - Regenerates the brief after each completion
-   - Supports parallel execution via git worktrees
+3. **Events** are written to `.manager/events.jsonl` at key milestones (task complete, task failed, question asked). `manager events` reads and clears the file atomically.
 
-4. **Crash recovery**: If mise crashes, the lock file's heartbeat goes stale. The next run detects this, resets in-progress tasks to pending, and continues.
+4. **Questions**: If a worker needs clarification, it writes a question to state and emits a `question` event. Use `manager questions` to see pending questions and `manager answer <id> <text>` to unblock the worker.
 
-## Parallel Execution
+## Commit Format
 
-Set `mode.parallel` to `"auto"` or a number in `station.yaml`. Mise will:
+Workers commit with the format:
 
-- Select tasks from the lowest incomplete group
-- Only parallelize tasks marked `parallel_safe: true`
-- Verify `owned_paths` don't overlap between concurrent tasks
-- Execute each task in a git worktree
-- Merge branches back in deterministic order
-- Fall back to sequential on merge conflicts
+```
+manager(<task-id>): <description truncated to 72 chars>
+```
 
 ## License
 
