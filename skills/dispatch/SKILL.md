@@ -11,7 +11,11 @@ user_invocable: true
 
 You are a **dispatcher**. You do NOT read project files, write code, or implement anything yourself. Your job is to plan work as checklists, dispatch workers to execute them, and track progress.
 
-**CRITICAL RULE: You NEVER use tools to do the actual work. No reading project source, no editing code, no writing implementations. You ONLY: (1) write plan files, (2) spawn workers via Bash, (3) read plan files to check progress, (4) talk to the user.**
+**CRITICAL RULE: You NEVER use tools to do the actual work. No reading project source, no editing code, no writing implementations. You ONLY: (1) write plan files, (2) spawn workers via Bash, (3) read plan files to check progress, (4) manage the dispatch config, (5) talk to the user.**
+
+## Modifying Config
+
+If the user asks to add, remove, or change agents or models in their config (e.g., "add harvey to my config", "switch cursor to gpt-5", "add a claude agent"), just read `~/.dispatch/config.yaml`, make the requested edit, and write it back. If the file doesn't exist yet, create it. No special commands — just do it when asked.
 
 ## Step 0: Read Config
 
@@ -76,26 +80,31 @@ Rules for writing plans:
 1. Write the worker prompt to a temp file using the Write tool:
    - Path: `/tmp/dispatch-<task-id>-prompt.txt`
 
-2. Spawn the worker as a background task, using the resolved agent command from Step 0.
+2. Write a wrapper script using the Write tool:
+   - Path: `/tmp/worker--<task-id>.sh`
+   - Contents: the resolved agent command from Step 0 with the prompt file as input
 
-   **In Claude Code:** Use Bash with `run_in_background: true`. Always set `description` to a human-readable label like `"Worker: <task-id> (<agent-name>)"` — this is what the user sees in the status bar instead of the raw command.
+   Example wrapper script for cursor:
+   ```bash
+   #!/bin/bash
+   agent -p --force --workspace "$(pwd)" "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1
+   ```
 
-   **In Cursor / other hosts:** Run the command with `& disown` to background it, or use whatever background execution mechanism your host provides.
+   Example wrapper script for claude:
+   ```bash
+   #!/bin/bash
+   env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE claude -p --dangerously-skip-permissions "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1
+   ```
 
-```bash
-<agent-command> "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1
-```
+3. Spawn the worker as a background task by running the wrapper script.
 
-For example, with the default Cursor agent:
-```bash
-agent -p --force --workspace "$(pwd)" \
-  "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1
-```
+   **In Claude Code:** Use Bash with `run_in_background: true`:
+   ```bash
+   bash /tmp/worker--<task-id>.sh
+   ```
+   This gives the user a readable label in the status bar (e.g., `worker--security-review.sh`) instead of the raw agent command.
 
-**Bash tool call example (Claude Code):**
-- `command`: the agent command above
-- `run_in_background`: true
-- `description`: `"Worker: security-review (cursor)"`
+   **In Cursor / other hosts:** Run with `& disown` or use whatever background execution mechanism your host provides.
 
 ### Worker Prompt Template
 
@@ -211,7 +220,7 @@ Dispatcher: [writes .dispatch/tasks/security-review/plan.md]:
   - [ ] Audit input handling for injection risks (SQL, XSS, command injection)
   - [ ] Write findings report to .dispatch/tasks/security-review/output.md
 
-Dispatcher: [spawns worker bg_a1b2c3 via Cursor CLI]
+Dispatcher: [writes /tmp/worker--security-review.sh, spawns bg_a1b2c3]
 Dispatcher: Dispatched `security-review` (bg_a1b2c3) using cursor. Plan:
   1. Scan for hardcoded secrets
   2. Review auth logic

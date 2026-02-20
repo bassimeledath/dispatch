@@ -27,10 +27,10 @@ An AI CLI backend — at least one of:
 ## Quick start
 
 ```
-/dispatch "add user authentication with JWT"
+/dispatch "fix a typo in README.md"
 ```
 
-The dispatcher creates a plan, spawns a background worker, and returns control immediately. Ask "status" anytime to check progress.
+The dispatcher creates a checklist plan, spawns a background worker, and returns control immediately. Ask "status" anytime to check worker progress, then review the completion report when the task finishes.
 
 ## Configuration (optional)
 
