@@ -4,11 +4,19 @@ A skill for Claude Code (and compatible tools) that dispatches background AI wor
 
 ## Install
 
+**Project-level** (shared with your team via version control):
+
 ```bash
 npx skills add bassimeledath/dispatch
 ```
 
-Or manually copy `skills/dispatch/` into your project's `.claude/skills/` directory.
+**User-level** (available in all your projects):
+
+```bash
+npx skills add bassimeledath/dispatch -g
+```
+
+Or manually copy `skills/dispatch/` into `.claude/skills/` (project) or `~/.claude/skills/` (global).
 
 ## Prerequisites
 
