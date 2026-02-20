@@ -20,9 +20,24 @@ First, determine what the user is asking for:
 
 ## Modifying Config
 
-Read `~/.dispatch/config.yaml` (if it doesn't exist, run `mkdir -p ~/.dispatch` then use the example at `${SKILL_DIR}/references/config-example.yaml` as a starting template). Make the change. Write the file. Confirm to the user.
+1. Read `~/.dispatch/config.yaml`. If it doesn't exist, start from this default:
 
-Cursor-based agent template:
+```yaml
+default: cursor
+
+agents:
+  cursor:
+    command: >
+      agent -p --force --workspace "$(pwd)"
+
+  claude:
+    command: >
+      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
+      claude -p --dangerously-skip-permissions
+```
+
+2. Apply the user's requested change. To add a new cursor-based agent with a specific model:
+
 ```yaml
   <name>:
     command: >
@@ -30,7 +45,8 @@ Cursor-based agent template:
       --workspace "$(pwd)"
 ```
 
-Claude-based agent template:
+To add a new claude-based agent with a specific model:
+
 ```yaml
   <name>:
     command: >
@@ -38,9 +54,12 @@ Claude-based agent template:
       claude -p --dangerously-skip-permissions --model <model>
 ```
 
-If the user doesn't specify cursor vs claude, default to cursor. If no model is specified, omit the `--model` flag.
+If the user doesn't specify cursor vs claude, use cursor. If no model specified, omit `--model`.
 
-**Done. Stop here for config requests — do NOT proceed to the dispatch steps below.**
+3. Run `mkdir -p ~/.dispatch` then write the file to `~/.dispatch/config.yaml`.
+4. Tell the user what you added. Done.
+
+**Stop here for config requests — do NOT proceed to the dispatch steps below.**
 
 ---
 
