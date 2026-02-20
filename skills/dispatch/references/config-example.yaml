@@ -1,0 +1,24 @@
+# ~/.dispatch/config.yaml
+# Worker agent configuration for /dispatch
+#
+# Each agent defines a command that runs an AI model in the background.
+# The command receives the task prompt as its last argument.
+
+default: cursor  # Which agent to use when none is specified
+
+agents:
+  cursor:
+    command: >
+      cursor agent --model gpt-5.3-codex-xhigh-fast
+      --print --trust --yolo --workspace "$(pwd)"
+
+  claude:
+    command: >
+      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
+      claude -p --dangerously-skip-permissions
+
+  # Example: named agent with a custom model
+  # harvey:
+  #   command: >
+  #     cursor agent --model gpt-5.3-codex-xhigh-fast
+  #     --print --trust --yolo --workspace "$(pwd)"

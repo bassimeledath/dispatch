@@ -1,50 +1,77 @@
-# Mise - Development Guide
+# Dispatch - Development Guide
 
 ## Overview
 
-Mise is a CLI orchestrator for long-running AI coding agents. It breaks large tasks into structured plans, executes them through Claude Code, and verifies results with backpressure checks.
+Dispatch is a skill (`/dispatch`) for Claude Code and compatible tools that decomposes large coding tasks into subtasks, dispatches them to background AI worker agents, and tracks progress via checklist-based plan files.
 
-## Development Workflow
+## How It Works
 
-Most changes to mise should go through the mise flow itself:
-
-```bash
-mise init
-mise prep "description of the change"
-mise loop
 ```
-
-This is the primary way to iterate on the tool. Direct manual edits are fine for quick fixes, but features and refactors should use mise to validate the tool's own workflow.
-
-## Build & Test
-
-```bash
-npm run build        # tsc compile
-npm run test         # vitest run
-npm run dev          # tsx src/index.ts (dev mode)
+User types: /dispatch "build auth system"
+         |
+         v
+Claude Code (dispatcher session)
+  |
+  |- Reads ~/.dispatch/config.yaml (or auto-detects available CLIs)
+  |- Creates plan file (.dispatch/tasks/<id>/plan.md) with checklist
+  |- Spawns background worker using configured agent command
+  |- Worker checks off items in plan.md as it completes them
+  |- Dispatcher reads plan.md to track progress (on status request or task-notification)
+  |- Handles blocked ([?]) and error ([!]) states
+  |- Reports results to user
 ```
-
-After changes, `npm run build` is required. Global installs via `npm install -g .` symlink to `dist/`, so a rebuild makes changes immediately available.
 
 ## Architecture
 
-- `src/index.ts` - CLI entry point (Commander.js). Registers all commands and handles bare-prompt shorthand.
-- `src/cli/commands/` - Command implementations (init, prep, run, loop, status, log, feedback).
-- `src/core/` - Orchestration logic (board, backpressure, brief, lock, signals, progress, readiness).
-- `src/engines/claude.ts` - Claude Code CLI adapter. Spawns `claude -p` with stream-json output.
-- `src/parallel/` - Parallel execution via git worktrees (scheduler, dispatch, merge).
-- `src/types/` - Zod schemas for board, station, status.
-- `src/utils/` - Helpers (detect, config, prompt, output, git).
-- `src/prompts/` - Markdown templates for planning and task execution prompts.
-- `templates/` - Scaffolding templates (gitignore, toc).
+- `skills/dispatch/SKILL.md` - The core skill. Teaches the dispatcher session how to plan, dispatch, monitor, and report. Follows the Agent Skills standard for `npx skills add` compatibility.
+- `skills/dispatch/references/config-example.yaml` - Example config users copy to `~/.dispatch/config.yaml`.
+- `.dispatch/tasks/<task-id>/plan.md` - Checklist-based plan file. The worker updates it in place, checking off items as they complete. Single source of truth for task progress.
+- `.dispatch/tasks/<task-id>/output.md` - Output artifact produced by the worker (findings, summaries, etc.).
+
+## Config System
+
+Workers are configured via `~/.dispatch/config.yaml`:
+
+```yaml
+default: cursor  # Agent used when none specified
+
+agents:
+  cursor:
+    command: >
+      cursor agent --model gpt-5.3-codex-xhigh-fast
+      --print --trust --yolo --workspace "$(pwd)"
+  claude:
+    command: >
+      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
+      claude -p --dangerously-skip-permissions
+```
+
+- **Named agents**: Define agents by name; reference them naturally in prompts (e.g., "have harvey review...").
+- **Auto-detection fallback**: If no config exists, `/dispatch` runs `which cursor` / `which claude` and uses the first available CLI.
 
 ## Key Patterns
 
-- **Fresh context per task**: No conversation history. Each task gets a clean prompt with board state from disk.
-- **Backpressure**: After each task, runs test/lint/build/typecheck. Only commands that pass during `init` are enforced.
-- **Targeted git staging**: Before executing a task, mise snapshots file metadata (mtime, size). After execution, it stages only files that changed during the task, avoiding unrelated working tree changes. Uses `git.snapshot()`, `git.changedFiles()`, and `git.stageFiles()`.
-- **Engine env**: When spawning Claude CLI, must clear `CLAUDE_CODE_ENTRYPOINT` and `CLAUDECODE` env vars to avoid nested-session detection.
-- **Commit format**: `mise(<task-id>): <title>`
+- **Checklist-as-state**: The plan file IS the progress tracker. `[x]` = done, `[ ]` = pending, `[?]` = blocked, `[!]` = error. The dispatcher reads it to report progress without needing signal files or polling.
+- **Configurable workers**: Any CLI that accepts a prompt as an argument can be a worker. Define it in `~/.dispatch/config.yaml`.
+- **Fresh context per subtask**: Each subtask gets its own worker instance with a clean prompt.
+- **Non-blocking dispatch**: The dispatcher dispatches and immediately returns control to the user. Progress arrives via `<task-notification>` events or manual status checks.
+- **No rigid schema**: The dispatcher decides dynamically how to decompose work.
+
+## `.dispatch/` Directory Structure
+
+```
+.dispatch/
+  tasks/
+    <task-id>/
+      plan.md      # Checklist updated by worker as it progresses
+      output.md    # Final output artifact (report, summary, etc.)
+```
+
+The `.dispatch/` directory is ephemeral. Delete it to clean up.
+
+## Local Development
+
+The symlink `.claude/skills/dispatch` → `skills/dispatch/` makes the skill available as `/dispatch` when developing in this repo.
 
 ## CI / Automation
 
@@ -52,4 +79,4 @@ After changes, `npm run build` is required. Global installs via `npm install -g 
 
 ## Repo
 
-GitHub: `bassimeledath/mise`
+GitHub: `bassimeledath/dispatch`

@@ -1,12 +1,2 @@
 node_modules/
-dist/
-*.tsbuildinfo
-.mise/status/
-.mise/logs/
-.mise/evidence/
-.mise/clarifications/
-.mise/run.lock
-.mise/progress.log
-.mise/toc.md
-.mise/toc.meta.yaml
-.mise/brief.md
+.dispatch/tasks/
