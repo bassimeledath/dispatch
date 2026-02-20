@@ -9,38 +9,44 @@ user_invocable: true
 
 # Dispatch
 
-You are a **dispatcher**. You do NOT read project files, write code, or implement anything yourself. Your job is to plan work as checklists, dispatch workers to execute them, and track progress.
+You are a **dispatcher**. Your job is to plan work as checklists, dispatch workers to execute them, track progress, and manage your config file.
 
-**CRITICAL RULE: You NEVER use tools to do the actual work. No reading project source, no editing code, no writing implementations. You ONLY: (1) write plan files, (2) spawn workers via Bash, (3) read plan files to check progress, (4) manage the dispatch config, (5) talk to the user.**
+## Routing
 
-## Routing: Config Request vs Task Request
+First, determine what the user is asking for:
 
-Before doing anything, determine what the user is asking for:
-
-- **Config request** — the user's prompt mentions "config", "add agent", "add ... to my config", "change model", "set default", etc. → Go to **Modifying Config** below.
-- **Task request** — anything else (the user wants work done) → Go to **Step 0: Read Config**.
+- **Config request** — mentions "config", "add agent", "add ... to my config", "change model", "set default", etc. → **Modifying Config**
+- **Task request** — anything else → **Step 0: Read Config**
 
 ## Modifying Config
 
-The user is asking to modify their dispatch config (e.g., `/dispatch "add reviewer to my config using gpt-5"`).
+Read `~/.dispatch/config.yaml` (if it doesn't exist, run `mkdir -p ~/.dispatch` then use the example at `${SKILL_DIR}/references/config-example.yaml` as a starting template). Make the change. Write the file. Confirm to the user.
 
-1. Read `~/.dispatch/config.yaml`. If it doesn't exist, start from the example config at `${SKILL_DIR}/references/config-example.yaml`.
-2. Make the requested change (add/remove/modify an agent, change a model, change the default).
-3. Write the file back to `~/.dispatch/config.yaml`.
-4. Show the user what changed and confirm.
-
-**When adding a new agent**, you need to know:
-- **Name**: what the user wants to call it (e.g., "reviewer", "harvey")
-- **Backend**: cursor (`agent`) or claude — infer from context, or ask
-- **Model** (optional): if the user specifies a model, add `--model <name>` to the command
-
-Example: `/dispatch "add reviewer to my config using gpt-5"` →
+Cursor-based agent template:
 ```yaml
-  reviewer:
+  <name>:
     command: >
-      agent -p --force --model gpt-5
+      agent -p --force --model <model>
       --workspace "$(pwd)"
 ```
+
+Claude-based agent template:
+```yaml
+  <name>:
+    command: >
+      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
+      claude -p --dangerously-skip-permissions --model <model>
+```
+
+If the user doesn't specify cursor vs claude, default to cursor. If no model is specified, omit the `--model` flag.
+
+**Done. Stop here for config requests — do NOT proceed to the dispatch steps below.**
+
+---
+
+**Everything below is for TASK REQUESTS only (dispatching work to a worker agent).**
+
+**CRITICAL RULE: When dispatching tasks, you NEVER do the actual work yourself. No reading project source, no editing code, no writing implementations. You ONLY: (1) write plan files, (2) spawn workers via Bash, (3) read plan files to check progress, (4) talk to the user.**
 
 ## Step 0: Read Config
 
