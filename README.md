@@ -13,7 +13,7 @@ Or manually copy `skills/dispatch/` into your project's `.claude/skills/` direct
 ## Prerequisites
 
 An AI CLI backend — at least one of:
-- [Cursor CLI](https://docs.cursor.com/) (`cursor agent`) — recommended
+- [Cursor CLI](https://docs.cursor.com/) (`agent`) — recommended
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude -p`)
 
 ## Quick start
@@ -34,8 +34,7 @@ default: cursor
 agents:
   cursor:
     command: >
-      cursor agent --model gpt-5.3-codex-xhigh-fast
-      --print --trust --yolo --workspace "$(pwd)"
+      agent -p --force --workspace "$(pwd)"
 ```
 
 No config is needed for the happy path — `/dispatch` auto-detects available CLIs.

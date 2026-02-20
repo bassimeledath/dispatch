@@ -38,8 +38,7 @@ default: cursor  # Agent used when none specified
 agents:
   cursor:
     command: >
-      cursor agent --model gpt-5.3-codex-xhigh-fast
-      --print --trust --yolo --workspace "$(pwd)"
+      agent -p --force --workspace "$(pwd)"
   claude:
     command: >
       env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
@@ -47,7 +46,7 @@ agents:
 ```
 
 - **Named agents**: Define agents by name; reference them naturally in prompts (e.g., "have harvey review...").
-- **Auto-detection fallback**: If no config exists, `/dispatch` runs `which cursor` / `which claude` and uses the first available CLI.
+- **Auto-detection fallback**: If no config exists, `/dispatch` runs `which agent` / `which claude` and uses the first available CLI.
 
 ## Key Patterns
 

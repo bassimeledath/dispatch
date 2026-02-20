@@ -3,14 +3,24 @@
 #
 # Each agent defines a command that runs an AI model in the background.
 # The command receives the task prompt as its last argument.
+#
+# Cursor CLI flags:
+#   -p / --print     Non-interactive print mode
+#   -f / --force     Auto-approve tool usage (file writes, commands)
+#   --model <name>   Model to use (run `agent models` to list available)
+#   --workspace <p>  Set workspace directory
+#
+# Claude Code flags:
+#   -p               Print mode (non-interactive)
+#   --dangerously-skip-permissions  Skip permission prompts
+#   --model <name>   Model override (sonnet, haiku, opus, etc.)
 
 default: cursor  # Which agent to use when none is specified
 
 agents:
   cursor:
     command: >
-      cursor agent --model gpt-5.3-codex-xhigh-fast
-      --print --trust --yolo --workspace "$(pwd)"
+      agent -p --force --workspace "$(pwd)"
 
   claude:
     command: >
@@ -20,5 +30,5 @@ agents:
   # Example: named agent with a custom model
   # harvey:
   #   command: >
-  #     cursor agent --model gpt-5.3-codex-xhigh-fast
-  #     --print --trust --yolo --workspace "$(pwd)"
+  #     agent -p --force --model gpt-5
+  #     --workspace "$(pwd)"

@@ -27,8 +27,8 @@ default: cursor  # Agent to use when none specified
 agents:
   cursor:
     command: >
-      cursor agent --model gpt-5.3-codex-xhigh-fast
-      --print --trust --yolo --workspace "$(pwd)"
+      agent -p --force --workspace "$(pwd)"
+
   claude:
     command: >
       env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
@@ -44,9 +44,9 @@ agents:
 
 If `~/.dispatch/config.yaml` does not exist, auto-detect:
 
-1. Run `which cursor` — if found, use: `cursor agent --model gpt-5.3-codex-xhigh-fast --print --trust --yolo --workspace "$(pwd)"`
+1. Run `which agent` — if found, use: `agent -p --force --workspace "$(pwd)"`
 2. Else run `which claude` — if found, use: `env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE claude -p --dangerously-skip-permissions`
-3. If neither is found, tell the user: "No worker agent found. Install cursor or claude CLI, or create a config at `~/.dispatch/config.yaml`." Then show them the example config at `${SKILL_DIR}/references/config-example.yaml` and stop.
+3. If neither is found, tell the user: "No worker agent found. Install the Cursor CLI (`agent`) or Claude Code CLI (`claude`), or create a config at `~/.dispatch/config.yaml`." Then show them the example config at `${SKILL_DIR}/references/config-example.yaml` and stop.
 
 ## Step 1: Create the Plan File
 
@@ -86,10 +86,9 @@ Rules for writing plans:
 <agent-command> "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1
 ```
 
-For example, with the default cursor agent:
+For example, with the default Cursor agent:
 ```bash
-cursor agent --model gpt-5.3-codex-xhigh-fast --print --trust --yolo \
-  --workspace "$(pwd)" \
+agent -p --force --workspace "$(pwd)" \
   "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1
 ```
 
@@ -212,8 +211,8 @@ Dispatcher: [writes .dispatch/tasks/security-review/plan.md]:
   - [ ] Audit input handling for injection risks (SQL, XSS, command injection)
   - [ ] Write findings report to .dispatch/tasks/security-review/output.md
 
-Dispatcher: [spawns worker bg_a1b2c3 via cursor agent]
-Dispatcher: Dispatched `security-review` (bg_a1b2c3) using cursor agent. Plan:
+Dispatcher: [spawns worker bg_a1b2c3 via Cursor CLI]
+Dispatcher: Dispatched `security-review` (bg_a1b2c3) using cursor. Plan:
   1. Scan for hardcoded secrets
   2. Review auth logic
   3. Check dependencies
