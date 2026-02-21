@@ -12,6 +12,9 @@ User types: /dispatch "build auth system"
          v
 Claude Code (dispatcher session)
   |
+  |- Routes: config request? → edit ~/.dispatch/config.yaml inline, done
+  |          task request?   → continue below
+  |
   |- Reads ~/.dispatch/config.yaml (or auto-detects available CLIs)
   |- Creates plan file (.dispatch/tasks/<id>/plan.md) with checklist
   |- Writes wrapper script to /tmp/worker--<id>.sh, spawns it as background task
@@ -55,6 +58,7 @@ agents:
 - **Fresh context per subtask**: Each subtask gets its own worker instance with a clean prompt.
 - **Non-blocking dispatch**: The dispatcher dispatches and immediately returns control to the user. Progress arrives via `<task-notification>` events or manual status checks.
 - **No rigid schema**: The dispatcher decides dynamically how to decompose work.
+- **Explicit routing**: Before acting, the dispatcher classifies the prompt as either a config request (mentions "config", "add agent", "change model", etc.) or a task request. Config requests are handled inline without spawning a worker; task requests proceed through the normal plan-and-dispatch flow.
 - **Natural language config editing**: Users can say "add harvey to my config" or "switch to gpt-5" and the dispatcher reads, edits, and writes `~/.dispatch/config.yaml` directly — no special commands needed.
 - **Readable status bar via wrapper script**: Workers are launched through a `/tmp/worker--<task-id>.sh` wrapper so Claude Code's status bar shows a human-readable label instead of the raw agent command.
 
