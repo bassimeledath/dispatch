@@ -203,7 +203,7 @@ cat .dispatch/tasks/<task-id>/plan.md
 Read the plan, report which items are done/blocked/failed, and share any output.
 
 If all items are complete, end your report with:
-`Feedback? Run /dispatch-feedback <task-id> +1 or /dispatch-feedback <task-id> -1 "reason"`
+`Feedback? Run /dispatch-feedback "your thoughts"`
 
 **B. When the user asks** ("status", "check", "how's it going?"):
 ```bash
@@ -303,7 +303,7 @@ Dispatcher: Found 2 issues:
   1. Hardcoded API key in config.ts:14
   2. No rate limiting on /api/login endpoint
 Full report at .dispatch/tasks/security-review/output.md
-Feedback? Run `/dispatch-feedback security-review +1` or `/dispatch-feedback security-review -1 "reason"`
+Feedback? Run `/dispatch-feedback "your thoughts"`
 ```
 
 **The key behavior: plan, dispatch, track progress via checklist, never block.**
