@@ -18,6 +18,8 @@ npx skills add bassimeledath/dispatch -g
 
 Or manually copy `skills/dispatch/` into `.claude/skills/` (project) or `~/.claude/skills/` (global).
 
+This also installs the companion `/dispatch-feedback` skill for logging feedback on dispatched tasks.
+
 ## Prerequisites
 
 An AI CLI backend — at least one of:
@@ -31,6 +33,14 @@ An AI CLI backend — at least one of:
 ```
 
 The dispatcher creates a checklist plan, spawns a background worker, and returns control immediately. Ask "status" anytime to check worker progress, then review the completion report when the task finishes.
+
+After a task completes, you can log feedback with:
+
+```
+/dispatch-feedback "your thoughts"
+```
+
+This appends a record to `.dispatch/feedback/events.jsonl` and optionally opens a GitHub issue.
 
 ## Configuration (optional)
 
