@@ -27,6 +27,7 @@ Claude Code (dispatcher session)
 ## Architecture
 
 - `skills/dispatch/SKILL.md` - The core skill. Teaches the dispatcher session how to plan, dispatch, monitor, and report. Follows the Agent Skills standard for `npx skills add` compatibility.
+- `skills/dispatch-feedback/SKILL.md` - Companion skill for logging freeform feedback on dispatched tasks and optionally opening a GitHub issue.
 - `skills/dispatch/references/config-example.yaml` - Example config users copy to `~/.dispatch/config.yaml`.
 - `.dispatch/tasks/<task-id>/plan.md` - Checklist-based plan file. The worker updates it in place, checking off items as they complete. Single source of truth for task progress.
 - `.dispatch/tasks/<task-id>/output.md` - Output artifact produced by the worker (findings, summaries, etc.).
@@ -70,13 +71,15 @@ agents:
     <task-id>/
       plan.md      # Checklist updated by worker as it progresses
       output.md    # Final output artifact (report, summary, etc.)
+  feedback/
+    events.jsonl   # Feedback log written by /dispatch-feedback
 ```
 
 The `.dispatch/` directory is ephemeral. Delete it to clean up.
 
 ## Local Development
 
-The symlink `.claude/skills/dispatch` → `skills/dispatch/` makes the skill available as `/dispatch` when developing in this repo.
+The symlinks `.claude/skills/dispatch` → `skills/dispatch/` and `.claude/skills/dispatch-feedback` → `skills/dispatch-feedback/` make the skills available as `/dispatch` and `/dispatch-feedback` when developing in this repo.
 
 ## CI / Automation
 
