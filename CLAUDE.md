@@ -20,15 +20,15 @@ Claude Code (dispatcher session)
   |- Creates IPC directory (.dispatch/tasks/<id>/ipc/)
   |- Resolves model → backend → command (appends --model flag for cursor/codex backends)
   |- Writes wrapper script to /tmp/worker--<id>.sh, spawns it as background task
-  |- Writes sentinel script to /tmp/sentinel--<id>.sh, spawns it as background task
+  |- Writes monitor script to /tmp/monitor--<id>.sh, spawns it as background task
   |- Worker checks off items in plan.md as it completes them
   |- When all items are checked, worker writes ipc/.done
-  |- Sentinel detects .done and exits cleanly
+  |- Monitor detects .done and exits cleanly
   |- If worker hits a blocker:
   |    |- Worker writes question to ipc/001.question (atomic write)
-  |    |- Sentinel detects question, exits → triggers <task-notification>
+  |    |- Monitor detects question, exits → triggers <task-notification>
   |    |- Dispatcher reads question, asks user, writes ipc/001.answer
-  |    |- Dispatcher respawns sentinel
+  |    |- Dispatcher respawns monitor
   |    |- Worker detects answer, writes 001.done, continues working
   |    |- Timeout fallback: worker dumps context.md, marks [?], exits
   |- Dispatcher reads plan.md to track progress (on status request or task-notification)
@@ -120,7 +120,7 @@ Old `agents:` config format is still recognized. Each agent entry is treated as 
 - **Explicit routing**: Before acting, the dispatcher classifies the prompt as either a config request (mentions "config", "add agent", "change model", etc.) or a task request. Config requests are handled inline without spawning a worker; task requests proceed through the normal plan-and-dispatch flow.
 - **Natural language config editing**: Users can say "add gpt-5.3 to my config" or "create a security-reviewer alias" and the dispatcher reads, edits, and writes `~/.dispatch/config.yaml` directly — no special commands needed.
 - **Readable status bar via wrapper script**: Workers are launched through a `/tmp/worker--<task-id>.sh` wrapper so Claude Code's status bar shows a human-readable label instead of the raw agent command.
-- **Sentinel-based IPC**: A lightweight sentinel script (bash description: "Monitoring progress: \<task-id\>") polls the IPC directory for unanswered questions and a `.done` completion marker. When it finds an unanswered question, it exits — triggering a `<task-notification>` that alerts the dispatcher. When it finds `.done`, it exits cleanly. This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
+- **Monitor-based IPC**: A lightweight monitor script (bash description: "Monitoring progress: \<task-id\>") polls the IPC directory for unanswered questions and a `.done` completion marker. When it finds an unanswered question, it exits — triggering a `<task-notification>` that alerts the dispatcher. When it finds `.done`, it exits cleanly. This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
 - **Proactive recovery**: When a worker fails to start, the dispatcher checks CLI availability and offers alternatives from the config, updating the default if needed.
 
 ## `.dispatch/` Directory Structure
