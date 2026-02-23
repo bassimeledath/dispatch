@@ -114,6 +114,24 @@ aliases:
 - [Codex CLI](https://github.com/openai/codex) (`codex`)
 - Any CLI that accepts a prompt argument
 
+## Updating
+
+**Skills CLI (recommended):**
+
+```bash
+npx skills update
+```
+
+This updates all installed skills to their latest versions. Run `npx skills check` first to see what's changed.
+
+**Symlinked to a local clone?** If your `.claude/skills/dispatch` is a symlink to a local git checkout, just pull:
+
+```bash
+cd /path/to/your/dispatch && git pull
+```
+
+Changes are picked up immediately — Claude Code hot-reloads skills from disk.
+
 ## License
 
 MIT
