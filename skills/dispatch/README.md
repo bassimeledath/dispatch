@@ -16,68 +16,91 @@ The dispatcher:
 3. Returns control immediately
 4. Reports progress when you ask or when the worker finishes
 
-## Configuration (optional)
+## First-run setup
 
-Create `~/.dispatch/config.yaml` to define worker agents. No config is needed for the happy path — `/dispatch` auto-detects `agent` (Cursor CLI) or `claude` on your PATH.
+On first use, `/dispatch` runs an interactive setup:
 
-**Cursor CLI worker:**
+1. **Detects CLIs** — checks for `agent` (Cursor CLI) and `claude` (Claude Code) on your PATH
+2. **Discovers models** — runs `agent models` (if Cursor is available) to list all models you have access to
+3. **Asks your preference** — presents notable models and asks which should be your default
+4. **Generates config** — writes `~/.dispatch/config.yaml` with all detected models
+
+No manual config needed — just run `/dispatch` and follow the prompts.
+
+## Configuration
+
+The config file at `~/.dispatch/config.yaml` has three sections:
+
+### Backends
+
+CLI commands for each provider. The `--model` flag is appended automatically.
 
 ```yaml
-default: cursor
+backends:
+  claude:
+    command: >
+      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
+      claude -p --dangerously-skip-permissions
 
-agents:
   cursor:
     command: >
       agent -p --force --workspace "$(pwd)"
 ```
 
-**Claude Code worker:**
+### Models
+
+Each model maps to a backend. Adding a model is one line:
 
 ```yaml
-default: claude
-
-agents:
-  claude:
-    command: >
-      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
-      claude -p --dangerously-skip-permissions
+models:
+  opus:            { backend: claude }
+  sonnet:          { backend: claude }
+  gpt-5.3-codex:  { backend: cursor }
+  gemini-3.1-pro:  { backend: cursor }
 ```
 
-**Both (pick a default):**
+When dispatching with `gpt-5.3-codex`, the command becomes:
+`agent -p --force --workspace "$(pwd)" --model gpt-5.3-codex`
+
+### Aliases
+
+Named shortcuts with optional prompt additions. Reference by name in dispatch commands:
 
 ```yaml
-default: cursor
+aliases:
+  security-reviewer:
+    model: opus
+    prompt: >
+      You are a security-focused reviewer. Prioritize OWASP Top 10
+      vulnerabilities, auth flaws, and injection risks.
 
-agents:
-  cursor:
-    command: >
-      agent -p --force --workspace "$(pwd)"
-
-  claude:
-    command: >
-      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
-      claude -p --dangerously-skip-permissions
-```
-
-See [`references/config-example.yaml`](references/config-example.yaml) for all available flags.
-
-## Named agents
-
-Define custom agents in your config, then reference them by name:
-
-```yaml
-agents:
-  harvey:
-    command: >
-      agent -p --force --model gpt-5
-      --workspace "$(pwd)"
+  quick:
+    model: sonnet
 ```
 
 ```
-/dispatch "have harvey review the auth module"
+/dispatch "have security-reviewer audit the auth module"
 ```
 
-The dispatcher scans your prompt for agent names from the config and routes accordingly.
+The alias prompt is prepended to the worker's task prompt, and the underlying model is used.
+
+See [`references/config-example.yaml`](references/config-example.yaml) for the full example.
+
+## Adding models
+
+If you reference a model not in your config, `/dispatch` automatically checks if it's available:
+
+- Runs `agent models` to verify availability
+- Adds it to your config with the correct backend
+- Dispatches with it immediately
+
+You can also add models manually:
+
+```
+/dispatch "add gpt-5.3 to my config"
+```
+
+Or edit `~/.dispatch/config.yaml` directly.
 
 ## Asking questions
 
@@ -107,6 +130,14 @@ Ask anytime: "status", "how's it going?", or just check `.dispatch/tasks/<task-i
 Works with **Claude Code** and **Cursor** as the host (the tool you run `/dispatch` in). Claude Code gets richer integration (background task notifications, status bar labels). Cursor works via standard background process execution.
 
 The **worker** agent (the one doing the actual work) can be any CLI that accepts a prompt — Cursor CLI, Claude Code, or anything you define in config.
+
+## Backward compatibility
+
+Old configs using the `agents:` format still work. The dispatcher treats each agent entry as an alias with an inline command. To upgrade, run:
+
+```
+/dispatch "migrate my config"
+```
 
 ## Cleanup
 

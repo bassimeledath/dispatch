@@ -15,9 +15,10 @@ Claude Code (dispatcher session)
   |- Routes: config request? → edit ~/.dispatch/config.yaml inline, done
   |          task request?   → continue below
   |
-  |- Reads ~/.dispatch/config.yaml (or auto-detects available CLIs)
+  |- Reads ~/.dispatch/config.yaml (or runs first-run setup)
   |- Creates plan file (.dispatch/tasks/<id>/plan.md) with checklist
   |- Creates IPC directory (.dispatch/tasks/<id>/ipc/)
+  |- Resolves model → backend → command (appends --model flag)
   |- Writes wrapper script to /tmp/worker--<id>.sh, spawns it as background task
   |- Writes sentinel script to /tmp/sentinel--<id>.sh, spawns it as background task
   |- Worker checks off items in plan.md as it completes them
@@ -45,35 +46,65 @@ Claude Code (dispatcher session)
 
 ## Config System
 
-Workers are configured via `~/.dispatch/config.yaml`:
+Workers are configured via `~/.dispatch/config.yaml`. The config uses a model-centric schema:
 
 ```yaml
-default: cursor  # Agent used when none specified
+default: opus  # Default model (by name or alias)
 
-agents:
-  cursor:
-    command: >
-      agent -p --force --workspace "$(pwd)"
+backends:
   claude:
     command: >
       env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
       claude -p --dangerously-skip-permissions
+  cursor:
+    command: >
+      agent -p --force --workspace "$(pwd)"
+
+models:
+  opus:            { backend: claude }
+  sonnet:          { backend: claude }
+  haiku:           { backend: claude }
+  gpt-5.3-codex:  { backend: cursor }
+  gemini-3.1-pro:  { backend: cursor }
+
+aliases:
+  security-reviewer:
+    model: opus
+    prompt: >
+      You are a security-focused reviewer.
+  quick:
+    model: sonnet
 ```
 
-- **Named agents**: Define agents by name; reference them naturally in prompts (e.g., "have harvey review...").
-- **Auto-detection fallback**: If no config exists, `/dispatch` runs `which agent` / `which claude` and uses the first available CLI.
+### How commands are constructed
+
+When dispatching with a model (e.g., `gpt-5.3-codex`):
+1. Look up model → `backend: cursor`
+2. Look up backend → `agent -p --force --workspace "$(pwd)"`
+3. Append `--model gpt-5.3-codex` → final command
+
+For aliases, the alias's `model` is resolved the same way, and any `prompt` addition is prepended to the worker prompt.
+
+### Backward compatibility
+
+Old `agents:` config format is still recognized. Each agent entry is treated as an alias with an inline command. The dispatcher suggests migration to the new format.
 
 ## Key Patterns
 
 - **Checklist-as-state**: The plan file IS the progress tracker. `[x]` = done, `[ ]` = pending, `[?]` = blocked, `[!]` = error. The dispatcher reads it to report progress without needing signal files or polling.
-- **Configurable workers**: Any CLI that accepts a prompt as an argument can be a worker. Define it in `~/.dispatch/config.yaml`.
+- **Model-centric config**: Backends define CLI commands once; models map to backends. The `--model` flag is appended automatically. Adding a model is one line.
+- **First-run setup**: On first use (no config file), the dispatcher detects CLIs, discovers available models via `agent models`, presents options via AskUserQuestion, and generates the config. No manual YAML writing needed.
+- **Smart model resolution**: If a user references a model not in config, the dispatcher probes availability (`agent models`), auto-adds it, and dispatches — no config editing needed.
+- **Aliases with prompt additions**: Named shortcuts (e.g., `security-reviewer`) that resolve to a model and optionally prepend role-specific instructions to the worker prompt.
+- **Configurable workers**: Any CLI that accepts a prompt as an argument can be a worker. Define it as a backend in `~/.dispatch/config.yaml`.
 - **Fresh context per subtask**: Each subtask gets its own worker instance with a clean prompt.
 - **Non-blocking dispatch**: The dispatcher dispatches and immediately returns control to the user. Progress arrives via `<task-notification>` events or manual status checks.
 - **No rigid schema**: The dispatcher decides dynamically how to decompose work.
 - **Explicit routing**: Before acting, the dispatcher classifies the prompt as either a config request (mentions "config", "add agent", "change model", etc.) or a task request. Config requests are handled inline without spawning a worker; task requests proceed through the normal plan-and-dispatch flow.
-- **Natural language config editing**: Users can say "add harvey to my config" or "switch to gpt-5" and the dispatcher reads, edits, and writes `~/.dispatch/config.yaml` directly — no special commands needed.
+- **Natural language config editing**: Users can say "add gpt-5.3 to my config" or "create a security-reviewer alias" and the dispatcher reads, edits, and writes `~/.dispatch/config.yaml` directly — no special commands needed.
 - **Readable status bar via wrapper script**: Workers are launched through a `/tmp/worker--<task-id>.sh` wrapper so Claude Code's status bar shows a human-readable label instead of the raw agent command.
 - **Sentinel-based IPC**: A lightweight sentinel script polls the IPC directory for unanswered questions. When it finds one, it exits — triggering a `<task-notification>` that alerts the dispatcher. This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
+- **Proactive recovery**: When a worker fails to start, the dispatcher checks CLI availability and offers alternatives from the config, updating the default if needed.
 
 ## `.dispatch/` Directory Structure
 
