@@ -1,6 +1,6 @@
 ---
 name: dispatch
-description: "Dispatch background AI worker agents to execute tasks via checklist-based plans."
+description: "Dispatch background AI worker agents to execute tasks via checklist-based plans. Use when the user says 'dispatch' to delegate work to background agents, e.g. 'dispatch sonnet to review this', 'dispatch opus to fix the bug', 'dispatch a worker to research X'."
 license: MIT
 version: "2.0.0"
 last_updated: "2026-02-22"
@@ -381,6 +381,22 @@ When you read a plan file, interpret the markers:
 - `- [?]` = blocked — look for the explanation line below it, surface it to the user
 - `- [!]` = error — look for the error description, report it
 
+## Adding Context to a Running Worker
+
+If the user provides additional context after a worker has been dispatched (e.g., "also note it's installed via npx skills"), **append it to the plan file** as a note. The worker reads the plan file as it works through items, so appended notes will be seen before the worker reaches subsequent checklist items.
+
+```markdown
+# Task Title
+
+- [x] First step
+- [ ] Second step
+- [ ] Third step
+
+> **Note from dispatcher:** The skill is installed via `npx skills add`, not directly from Anthropic. Account for this in the output.
+```
+
+**Do NOT** attempt to inject context via the IPC directory. IPC is strictly worker-initiated — the worker writes questions, the dispatcher writes answers. Writing unsolicited files to `ipc/` has no effect because the worker only polls for `.answer` files matching its own `.question` files.
+
 ## Handling Blocked Items
 
 There are two ways a question reaches the dispatcher: the IPC flow (primary) and the legacy fallback.
@@ -426,6 +442,12 @@ When the worker's `<task-notification>` arrives and the plan shows `- [?]`:
 ## IPC Protocol Specification
 
 The IPC system uses sequence-numbered files in `.dispatch/tasks/<task-id>/ipc/` for bidirectional communication between the worker and dispatcher.
+
+### Directionality
+
+IPC is **worker-initiated only**. The worker writes questions; the dispatcher writes answers to those questions. The dispatcher must never write unsolicited files to the IPC directory — the worker will not detect or process them.
+
+To provide additional context to a running worker, append notes to the plan file instead (see **Adding Context to a Running Worker** above).
 
 ### File naming
 
