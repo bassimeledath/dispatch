@@ -88,7 +88,7 @@ models:
 Rules:
 - Include **all** detected models — they're one-liners and it's better to have them available than to require re-discovery.
 - **Group by provider** with YAML comments for readability (`# Claude`, `# GPT`, `# Gemini`, etc.).
-- For Claude models when both CLIs exist: set `backend: claude` (native backend preferred).
+- **Claude model detection:** Any model ID containing `opus`, `sonnet`, or `haiku` (including versioned variants like `sonnet-4.6`, `opus-4.5-thinking`, etc.) is a Claude model. When the Claude Code CLI is available, ALL Claude models must use `backend: claude`. Never route Claude models through the cursor backend — the Claude CLI manages model selection natively and doesn't need `--model`.
 - Only include backends that were actually detected.
 - Set user's chosen default.
 - Run `mkdir -p ~/.dispatch` then write the file.
@@ -169,7 +169,7 @@ Process old-format configs the same way as before: scan the prompt for agent nam
 
 4. **If no model mentioned:** use the model specified in `default`.
 
-5. **Backend preference for Claude models:** When a Claude model (`opus`, `sonnet`, `haiku`) is available through both backends, prefer `claude` backend (native).
+5. **Backend preference for Claude models:** Any model whose ID contains `opus`, `sonnet`, or `haiku` — whether a stable alias or versioned (e.g., `sonnet-4.6`, `opus-4.5-thinking`) — MUST use the `claude` backend when available. Never route Claude models through cursor.
 
 ### Command construction
 
