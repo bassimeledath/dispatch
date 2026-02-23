@@ -84,8 +84,10 @@ aliases:
 3. Append `--model gpt-5.3-codex` → final command
 
 **Claude backend** — do NOT append `--model`:
-1. Look up model (e.g., `opus`) → `backend: claude`
+1. Look up model (e.g., `opus`, or a versioned ID like `sonnet-4.6`) → `backend: claude`
 2. Use the backend command as-is. The Claude CLI manages its own model selection. Appending `--model` can cause access errors due to internal alias resolution.
+
+> **Claude model detection:** Any model ID containing `opus`, `sonnet`, or `haiku` — including versioned variants (e.g., `sonnet-4.6`, `opus-4.5-thinking`) — is a Claude model and must use `backend: claude` when the Claude Code CLI is available. Never route Claude models through the cursor backend.
 
 For aliases, the alias's `model` is resolved the same way, and any `prompt` addition is prepended to the worker prompt.
 
