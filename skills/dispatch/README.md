@@ -33,6 +33,10 @@ Worker is asking: "requirements.txt doesn't exist. What feature should I impleme
 Answer sent. Worker is continuing.
 ```
 
+### Non-blocking — you never wait
+
+The moment a worker is dispatched, your session is **immediately free**. Dispatch another task. Ask a question. Write code. The dispatcher handles multiple workers in parallel, reports results as they arrive, and surfaces questions only when they need your input. No polling, no tab-switching, no "is it done yet?"
+
 ### Any model, one interface
 
 Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini for speed. Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it.
