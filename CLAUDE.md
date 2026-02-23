@@ -112,7 +112,7 @@ Old `agents:` config format is still recognized. Each agent entry is treated as 
 - **First-run setup**: On first use (no config file), the dispatcher detects CLIs, discovers available models via `agent models`, presents options via AskUserQuestion, and generates the config. No manual YAML writing needed.
 - **Smart model resolution**: If a user references a model not in config, the dispatcher probes availability (`agent models`), auto-adds it, and dispatches — no config editing needed.
 - **Aliases with prompt additions**: Named shortcuts (e.g., `security-reviewer`) that resolve to a model and optionally prepend role-specific instructions to the worker prompt.
-- **Configurable workers**: Any CLI that accepts a prompt as an argument can be a worker. Define it as a backend in `~/.dispatch/config.yaml`.
+- **Host vs worker distinction**: The host session (where the user types `/dispatch`) must be Claude Code or Cursor — these are the only environments that run the dispatcher. Worker CLIs (Claude Code, Cursor, Codex, or any CLI that accepts a prompt) execute subtasks in the background. Codex and other non-host CLIs can only be workers, not hosts.
 - **Fresh context per subtask**: Each subtask gets its own worker instance with a clean prompt.
 - **Non-blocking dispatch**: The dispatcher dispatches and immediately returns control to the user. Progress arrives via `<task-notification>` events or manual status checks.
 - **No rigid schema**: The dispatcher decides dynamically how to decompose work.
