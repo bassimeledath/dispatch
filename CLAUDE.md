@@ -7,7 +7,7 @@ Dispatch is a skill (`/dispatch`) for Claude Code that decomposes large coding t
 ## How It Works
 
 ```
-User types: /dispatch "build auth system"
+User types: /dispatch build auth system
          |
          v
 Claude Code (dispatcher session)
