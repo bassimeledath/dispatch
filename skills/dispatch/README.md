@@ -1,145 +1,94 @@
 # /dispatch
 
-Dispatch background AI worker agents to execute tasks via checklist-based plans.
+**Stop juggling terminals.** One command dispatches work to background AI agents — Claude, GPT, Gemini — while you keep coding.
 
-## What it does
-
-`/dispatch` decomposes a task into a checklist plan, spawns a background AI worker to execute it, and tracks progress — all without blocking your session.
+<p align="center">
+  <img src="assets/architecture.svg" alt="dispatch architecture: you run /dispatch, it plans the task, fans out to parallel workers (Claude, GPT, Gemini), and reports results back" width="700" />
+</p>
 
 ```
 /dispatch "do a security review of this project"
 ```
 
-The dispatcher:
-1. Creates a checklist plan at `.dispatch/tasks/<task-id>/plan.md`
-2. Spawns a background worker to execute it
-3. Returns control immediately
-4. Reports progress when you ask or when the worker finishes
+The dispatcher plans the task, spawns background workers, and reports back. You never leave your session.
 
-## First-run setup
+---
 
-On first use, `/dispatch` runs an interactive setup:
+## How it works
 
-1. **Detects CLIs** — checks for `agent` (Cursor CLI) and `claude` (Claude Code) on your PATH
-2. **Discovers models** — runs `agent models` (if Cursor is available) to list all models you have access to
-3. **Asks your preference** — presents notable models and asks which should be your default
-4. **Generates config** — writes `~/.dispatch/config.yaml` with all detected models
+1. You run `/dispatch "task description"`
+2. A checklist plan is created at `.dispatch/tasks/<id>/plan.md`
+3. A background worker picks it up and checks off items as it goes
+4. You get results when it's done — or ask for status anytime
 
-No manual config needed — just run `/dispatch` and follow the prompts.
+Workers can use **any model** you have access to. Mix Claude for deep reasoning, GPT for broad tasks, Gemini for speed — all from one interface.
+
+## Setup
+
+On first run, `/dispatch` auto-detects your CLIs (`claude`, `agent`, `codex`), discovers available models, and generates `~/.dispatch/config.yaml`. No manual config needed.
 
 ## Configuration
 
-The config file at `~/.dispatch/config.yaml` has three sections:
+Three sections in `~/.dispatch/config.yaml`:
 
-### Backends
-
-CLI commands for each provider. The `--model` flag is appended automatically.
-
+**Backends** — CLI commands for each provider:
 ```yaml
 backends:
   claude:
     command: >
       env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
       claude -p --dangerously-skip-permissions
-
   cursor:
     command: >
       agent -p --force --workspace "$(pwd)"
 ```
 
-### Models
-
-Each model maps to a backend. Adding a model is one line:
-
+**Models** — one line each, mapped to a backend:
 ```yaml
 models:
   opus:            { backend: claude }
   sonnet:          { backend: claude }
-  gpt-5.3-codex:  { backend: cursor }
+  gpt-5.3-codex:  { backend: codex }
   gemini-3.1-pro:  { backend: cursor }
 ```
 
-When dispatching with `gpt-5.3-codex` (cursor backend), the command becomes:
-`agent -p --force --workspace "$(pwd)" --model gpt-5.3-codex`
-
-For Claude backend models (`opus`, `sonnet`, `haiku`), `--model` is **not** appended — the Claude CLI manages its own model selection.
-
-### Aliases
-
-Named shortcuts with optional prompt additions. Reference by name in dispatch commands:
-
+**Aliases** — named shortcuts with optional role prompts:
 ```yaml
 aliases:
   security-reviewer:
     model: opus
     prompt: >
-      You are a security-focused reviewer. Prioritize OWASP Top 10
-      vulnerabilities, auth flaws, and injection risks.
-
-  quick:
-    model: sonnet
+      You are a security-focused reviewer. Prioritize OWASP Top 10.
 ```
-
-```
-/dispatch "have security-reviewer audit the auth module"
-```
-
-The alias prompt is prepended to the worker's task prompt, and the underlying model is used.
 
 See [`references/config-example.yaml`](references/config-example.yaml) for the full example.
 
 ## Adding models
 
-If you reference a model not in your config, `/dispatch` automatically checks if it's available:
-
-- Runs `agent models` to verify availability
-- Adds it to your config with the correct backend
-- Dispatches with it immediately
-
-You can also add models manually:
+Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it:
 
 ```
-/dispatch "add gpt-5.3 to my config"
+/dispatch "use gemini-3.1-pro to review the API layer"
 ```
 
-Or edit `~/.dispatch/config.yaml` directly.
+Or add manually: `/dispatch "add gpt-5.3 to my config"`
 
-## Asking questions
+## Worker IPC
 
-Workers can ask clarification questions **without exiting**. When a worker hits a blocker, it writes a question to an IPC file. A sentinel process detects it and notifies the dispatcher, which surfaces the question to you. After you answer, the worker picks up where it left off — with full context preserved.
+Workers can ask clarification questions **without exiting**. When a worker hits a blocker, it surfaces the question to you. After you answer, the worker picks up where it left off with full context preserved. If you're away, it saves context and marks the item `[?]` for later.
 
-If the answer doesn't arrive within ~3 minutes (e.g., you stepped away), the worker falls back to the original behavior: saves its context, marks the item `[?]`, and exits. When you return and answer, a new worker spawns with the saved context.
-
-This is automatic — you don't need to configure anything.
-
-## Plan file markers
-
-Workers update the plan file as they progress:
+## Plan markers
 
 | Marker | Meaning |
 |--------|---------|
 | `[ ]`  | Pending |
-| `[x]`  | Done    |
-| `[?]`  | Blocked — worker timed out waiting for an answer and exited |
-| `[!]`  | Error   |
-
-## Checking progress
-
-Ask anytime: "status", "how's it going?", or just check `.dispatch/tasks/<task-id>/plan.md` directly.
+| `[x]`  | Done |
+| `[?]`  | Blocked — waiting for your answer |
+| `[!]`  | Error |
 
 ## Host compatibility
 
-Works with **Claude Code** and **Cursor** as the host (the tool you run `/dispatch` in). Claude Code gets richer integration (background task notifications, status bar labels). Cursor works via standard background process execution.
-
-The **worker** agent (the one doing the actual work) can be any CLI that accepts a prompt — Cursor CLI, Claude Code, or anything you define in config.
-
-## Backward compatibility
-
-Old configs using the `agents:` format still work. The dispatcher treats each agent entry as an alias with an inline command. To upgrade, run:
-
-```
-/dispatch "migrate my config"
-```
+Works in **Claude Code** and **Cursor**. The worker can be any CLI that accepts a prompt — Claude Code, Cursor CLI, Codex CLI, or anything you define in config.
 
 ## Cleanup
 
