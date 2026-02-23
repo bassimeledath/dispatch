@@ -298,7 +298,7 @@ Rules for writing plans:
    bash /tmp/worker--security-review.sh
    ```
    ```bash
-   # description: "Run dispatch sentinel: security-review"
+   # description: "Monitoring progress: security-review"
    bash /tmp/sentinel--security-review.sh
    ```
 
