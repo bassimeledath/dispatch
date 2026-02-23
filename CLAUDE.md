@@ -22,6 +22,8 @@ Claude Code (dispatcher session)
   |- Writes wrapper script to /tmp/worker--<id>.sh, spawns it as background task
   |- Writes sentinel script to /tmp/sentinel--<id>.sh, spawns it as background task
   |- Worker checks off items in plan.md as it completes them
+  |- When all items are checked, worker writes ipc/.done
+  |- Sentinel detects .done and exits cleanly
   |- If worker hits a blocker:
   |    |- Worker writes question to ipc/001.question (atomic write)
   |    |- Sentinel detects question, exits → triggers <task-notification>
@@ -119,7 +121,7 @@ Old `agents:` config format is still recognized. Each agent entry is treated as 
 - **Explicit routing**: Before acting, the dispatcher classifies the prompt as either a config request (mentions "config", "add agent", "change model", etc.) or a task request. Config requests are handled inline without spawning a worker; task requests proceed through the normal plan-and-dispatch flow.
 - **Natural language config editing**: Users can say "add gpt-5.3 to my config" or "create a security-reviewer alias" and the dispatcher reads, edits, and writes `~/.dispatch/config.yaml` directly — no special commands needed.
 - **Readable status bar via wrapper script**: Workers are launched through a `/tmp/worker--<task-id>.sh` wrapper so Claude Code's status bar shows a human-readable label instead of the raw agent command.
-- **Sentinel-based IPC**: A lightweight sentinel script polls the IPC directory for unanswered questions. When it finds one, it exits — triggering a `<task-notification>` that alerts the dispatcher. This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
+- **Sentinel-based IPC**: A lightweight sentinel script polls the IPC directory for unanswered questions and for a `.done` completion marker. When it finds an unanswered question, it exits — triggering a `<task-notification>` that alerts the dispatcher. When it finds `.done`, it exits cleanly without notification. This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
 - **Proactive recovery**: When a worker fails to start, the dispatcher checks CLI availability and offers alternatives from the config, updating the default if needed.
 
 ## `.dispatch/` Directory Structure
@@ -135,6 +137,7 @@ Old `agents:` config format is still recognized. Each agent entry is treated as 
         001.question  # Worker's question (plain text)
         001.answer    # Dispatcher's answer (plain text)
         001.done      # Worker's acknowledgment
+        .done         # Completion marker written by worker when all tasks finish
   feedback/
     events.jsonl   # Feedback log written by /dispatch-feedback
 ```
