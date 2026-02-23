@@ -42,20 +42,37 @@ After a task completes, you can log feedback with:
 
 This appends a record to `.dispatch/feedback/events.jsonl` and optionally opens a GitHub issue.
 
-## Configuration (optional)
+## Configuration
 
-Create `~/.dispatch/config.yaml` to define worker agents:
+On first use, `/dispatch` runs an interactive setup — detects available CLIs, discovers models, and generates `~/.dispatch/config.yaml` automatically. No manual config needed.
+
+The config uses a model-centric schema:
 
 ```yaml
-default: cursor
+default: opus  # Default model (by name or alias)
 
-agents:
+backends:
+  claude:
+    command: >
+      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
+      claude -p --dangerously-skip-permissions
   cursor:
     command: >
       agent -p --force --workspace "$(pwd)"
+
+models:
+  opus:   { backend: claude }
+  sonnet: { backend: claude }
+  gpt-5.3-codex: { backend: cursor }
+
+aliases:
+  security-reviewer:
+    model: opus
+    prompt: >
+      You are a security-focused reviewer.
 ```
 
-No config is needed for the happy path — `/dispatch` auto-detects available CLIs.
+Old configs using the `agents:` format remain backward compatible.
 
 See [skills/dispatch/README.md](skills/dispatch/README.md) for detailed usage and configuration.
 
