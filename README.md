@@ -9,7 +9,7 @@
 </p>
 
 ```
-/dispatch "do a security review of this project"
+/dispatch use sonnet to find better design patterns for the auth module
 ```
 
 ---
@@ -40,7 +40,8 @@ The moment a worker is dispatched, your session is **immediately free**. Dispatc
 Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini for speed. Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it.
 
 ```
-/dispatch "use gemini-3.1-pro to review the API layer"
+/dispatch use opus to review this PR for edge cases
+/dispatch use gemini to refactor the config parser — it's getting unwieldy
 ```
 
 ---
@@ -56,7 +57,7 @@ npx skills add bassimeledath/dispatch        # project-level (team-shared)
 
 ## How it works
 
-1. You run `/dispatch "task description"`
+1. You run `/dispatch task description`
 2. A checklist plan is created at `.dispatch/tasks/<id>/plan.md`
 3. A background worker picks it up and checks off items as it goes
 4. If the worker has a question, it asks — you answer — it continues
