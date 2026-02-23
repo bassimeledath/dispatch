@@ -18,7 +18,7 @@ Claude Code (dispatcher session)
   |- Reads ~/.dispatch/config.yaml (or runs first-run setup)
   |- Creates plan file (.dispatch/tasks/<id>/plan.md) with checklist
   |- Creates IPC directory (.dispatch/tasks/<id>/ipc/)
-  |- Resolves model → backend → command (appends --model flag)
+  |- Resolves model → backend → command (appends --model flag for cursor backend only)
   |- Writes wrapper script to /tmp/worker--<id>.sh, spawns it as background task
   |- Writes sentinel script to /tmp/sentinel--<id>.sh, spawns it as background task
   |- Worker checks off items in plan.md as it completes them
