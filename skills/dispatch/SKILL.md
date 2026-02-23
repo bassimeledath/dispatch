@@ -236,7 +236,7 @@ Rules for writing plans:
 
 ### UX principle
 
-**Minimize user-visible tool calls.** The plan file (Step 1) is the only artifact users need to see in detail. Prompt files, wrapper scripts, sentinel scripts, and IPC directories are implementation scaffolding — create them all in a **single Bash call** using heredocs, never as individual Write calls. Use a clear Bash `description` (e.g., "Set up dispatch scaffolding for security-review").
+**Minimize user-visible tool calls.** The plan file (Step 1) is the only artifact users need to see in detail. Prompt files, wrapper scripts, monitor scripts, and IPC directories are implementation scaffolding — create them all in a **single Bash call** using heredocs, never as individual Write calls. Use a clear Bash `description` (e.g., "Set up dispatch scaffolding for security-review").
 
 ### Dispatch procedure:
 
@@ -244,7 +244,7 @@ Rules for writing plans:
    - `mkdir -p .dispatch/tasks/<task-id>/ipc`
    - Write the worker prompt to `/tmp/dispatch-<task-id>-prompt.txt` (see Worker Prompt Template below). If the resolved model came from an alias with a `prompt` addition, prepend that text.
    - Write the wrapper script to `/tmp/worker--<task-id>.sh`. Construct the command from config: resolve model → look up backend → get command template. If backend is `cursor` or `codex`: append `--model <model-id>`. If backend is `claude`: do NOT append `--model`. The script runs: `<command> "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1`
-   - Write the sentinel script to `/tmp/sentinel--<task-id>.sh`. It polls the IPC directory for unanswered `.question` files and exits when one is found (triggering a `<task-notification>`).
+   - Write the monitor script to `/tmp/monitor--<task-id>.sh`. It polls the IPC directory for unanswered `.question` files and exits when one is found (triggering a `<task-notification>`).
    - `chmod +x` both scripts.
 
    For **multiple parallel tasks**, combine ALL tasks' scaffolding into this single Bash call.
@@ -260,7 +260,7 @@ Rules for writing plans:
    #!/bin/bash
    env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE claude -p --dangerously-skip-permissions "$(cat /tmp/dispatch-security-review-prompt.txt)" 2>&1
    WORKER
-   cat > /tmp/sentinel--security-review.sh << 'SENTINEL'
+   cat > /tmp/monitor--security-review.sh << 'MONITOR'
    #!/bin/bash
    IPC_DIR=".dispatch/tasks/security-review/ipc"
    shopt -s nullglob
@@ -272,8 +272,8 @@ Rules for writing plans:
      done
      sleep 3
    done
-   SENTINEL
-   chmod +x /tmp/worker--security-review.sh /tmp/sentinel--security-review.sh
+   MONITOR
+   chmod +x /tmp/worker--security-review.sh /tmp/monitor--security-review.sh
    ```
 
    Example (cursor backend — note `--model` flag):
@@ -292,17 +292,17 @@ Rules for writing plans:
    WORKER
    ```
 
-2. **Spawn worker and sentinel as background tasks.** Launch both in a single message (parallel `run_in_background: true` calls) with clear descriptions:
+2. **Spawn worker and monitor as background tasks.** Launch both in a single message (parallel `run_in_background: true` calls) with clear descriptions:
    ```bash
    # description: "Run dispatch worker: security-review"
    bash /tmp/worker--security-review.sh
    ```
    ```bash
    # description: "Monitoring progress: security-review"
-   bash /tmp/sentinel--security-review.sh
+   bash /tmp/monitor--security-review.sh
    ```
 
-   **Record both task IDs internally** — you need them to distinguish worker vs sentinel notifications. **Do NOT report these IDs to the user** (they are implementation details).
+   **Record both task IDs internally** — you need them to distinguish worker vs monitor notifications. **Do NOT report these IDs to the user** (they are implementation details).
 
 ### Worker Prompt Template
 
@@ -343,7 +343,7 @@ After dispatching, tell the user **only what matters**:
 
 Keep the output clean. Example: "Dispatched `security-review` using opus. Plan: 1) Scan for secrets 2) Review auth logic ..."
 
-**Do NOT** report worker/sentinel background task IDs, backend names, script paths, or other implementation details to the user.
+**Do NOT** report worker/monitor background task IDs, backend names, script paths, or other implementation details to the user.
 
 ## Checking Progress
 
@@ -353,7 +353,7 @@ Progress is visible by reading the plan file. You can check it:
 
 First, determine which task finished by matching the notification's task ID:
 
-- **Sentinel notification** (sentinel task ID matched): A question has arrived from the worker. Go to **Handling Blocked Items → IPC Flow** below.
+- **Monitor notification** (monitor task ID matched): A question has arrived from the worker. Go to **Handling Blocked Items → IPC Flow** below.
 - **Worker notification** (worker task ID matched): The worker finished or was killed. Read the plan file, report results.
 
 ```bash
@@ -385,9 +385,9 @@ When you read a plan file, interpret the markers:
 
 There are two ways a question reaches the dispatcher: the IPC flow (primary) and the legacy fallback.
 
-### IPC Flow (sentinel-triggered)
+### IPC Flow (monitor-triggered)
 
-When the sentinel's `<task-notification>` arrives, a question is waiting. The worker is still alive, polling for an answer.
+When the monitor's `<task-notification>` arrives, a question is waiting. The worker is still alive, polling for an answer.
 
 1. Find the unanswered question — look for a `*.question` file without a matching `*.answer`:
    ```bash
@@ -401,9 +401,9 @@ When the sentinel's `<task-notification>` arrives, a question is waiting. The wo
    echo "<user's answer>" > .dispatch/tasks/<task-id>/ipc/001.answer.tmp
    mv .dispatch/tasks/<task-id>/ipc/001.answer.tmp .dispatch/tasks/<task-id>/ipc/001.answer
    ```
-6. Respawn the sentinel (the old one exited after detecting the question):
-   - The script at `/tmp/sentinel--<task-id>.sh` already exists — just re-spawn it with `run_in_background: true`.
-   - Record the new sentinel task ID internally (do not report it to the user).
+6. Respawn the monitor (the old one exited after detecting the question):
+   - The script at `/tmp/monitor--<task-id>.sh` already exists — just re-spawn it with `run_in_background: true`.
+   - Record the new monitor task ID internally (do not report it to the user).
 
 The worker detects the answer, writes `001.done`, and continues working — all without losing context.
 
@@ -512,8 +512,8 @@ User: /dispatch "do a security review of this project"
 
 Dispatcher: [reads ~/.dispatch/config.yaml — default model: opus]
 Dispatcher: [writes .dispatch/tasks/security-review/plan.md]
-Dispatcher: [single Bash call: creates IPC dir, prompt file, wrapper script, sentinel script]
-Dispatcher: [spawns worker and sentinel as background tasks]
+Dispatcher: [single Bash call: creates IPC dir, prompt file, wrapper script, monitor script]
+Dispatcher: [spawns worker and monitor as background tasks]
 Dispatcher: Dispatched `security-review` using opus. Plan:
   1. Scan for hardcoded secrets
   2. Review auth logic
@@ -536,16 +536,16 @@ Full report at .dispatch/tasks/security-review/output.md
 ```
 User: /dispatch "implement the feature described in requirements.txt"
 
-Dispatcher: [writes plan, sets up scaffolding, spawns worker + sentinel]
+Dispatcher: [writes plan, sets up scaffolding, spawns worker + monitor]
 Dispatcher: Dispatched `impl-feature` using opus. Plan: ...
 
-[<task-notification> arrives — sentinel detected a question]
+[<task-notification> arrives — monitor detected a question]
 
 Dispatcher: [reads .dispatch/tasks/impl-feature/ipc/001.question]
 Dispatcher: Worker is asking: "requirements.txt doesn't exist. What feature should I implement?"
 User: Add a /health endpoint that returns JSON with uptime and version.
 
-Dispatcher: [writes 001.answer atomically, respawns sentinel]
+Dispatcher: [writes 001.answer atomically, respawns monitor]
 Dispatcher: Answer sent. Worker is continuing.
 
 [<task-notification> arrives — worker finished]
