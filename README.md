@@ -114,6 +114,28 @@ aliases:
 - [Codex CLI](https://github.com/openai/codex) (`codex`)
 - Any CLI that accepts a prompt argument
 
+## Updating
+
+**Vercel Skills CLI:**
+
+```bash
+npx skills sync
+```
+
+**Claude Code CLI:**
+
+```bash
+claude skill refresh dispatch
+```
+
+**Symlinked to a local clone?** If you installed with `--link`, the skill directory is a symlink to your local git checkout. Just pull:
+
+```bash
+cd /path/to/your/dispatch && git pull
+```
+
+No refresh or sync needed — changes are picked up immediately.
+
 ## License
 
 MIT
