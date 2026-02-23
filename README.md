@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="skills/dispatch/assets/logo.svg" alt="Dispatch logo — a messenger pigeon carrying a checklist" width="100" />
+</p>
+
 # /dispatch
 
 **You don't need 6 terminals.** You need one session that delegates.
