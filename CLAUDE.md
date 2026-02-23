@@ -22,6 +22,8 @@ Claude Code (dispatcher session)
   |- Writes wrapper script to /tmp/worker--<id>.sh, spawns it as background task
   |- Writes sentinel script to /tmp/sentinel--<id>.sh, spawns it as background task
   |- Worker checks off items in plan.md as it completes them
+  |- When all items are checked, worker writes ipc/.done
+  |- Sentinel detects .done and exits cleanly
   |- If worker hits a blocker:
   |    |- Worker writes question to ipc/001.question (atomic write)
   |    |- Sentinel detects question, exits → triggers <task-notification>
@@ -111,14 +113,14 @@ Old `agents:` config format is still recognized. Each agent entry is treated as 
 - **First-run setup**: On first use (no config file), the dispatcher detects CLIs, discovers available models via `agent models`, presents options via AskUserQuestion, and generates the config. No manual YAML writing needed.
 - **Smart model resolution**: If a user references a model not in config, the dispatcher probes availability (`agent models`), auto-adds it, and dispatches — no config editing needed.
 - **Aliases with prompt additions**: Named shortcuts (e.g., `security-reviewer`) that resolve to a model and optionally prepend role-specific instructions to the worker prompt.
-- **Host vs worker distinction**: The host session (where the user types `/dispatch`) must be Claude Code or Cursor — these are the only environments that run the dispatcher. Worker CLIs (Claude Code, Cursor, Codex, or any CLI that accepts a prompt) execute subtasks in the background. Codex and other non-host CLIs can only be workers, not hosts.
+- **Host vs worker distinction**: The host session (where the user types `/dispatch`) must be Claude Code — it is the only environment that runs the dispatcher. Worker CLIs (Claude Code, Cursor, Codex, or any CLI that accepts a prompt) execute subtasks in the background.
 - **Fresh context per subtask**: Each subtask gets its own worker instance with a clean prompt.
 - **Non-blocking dispatch**: The dispatcher dispatches and immediately returns control to the user. Progress arrives via `<task-notification>` events or manual status checks.
 - **No rigid schema**: The dispatcher decides dynamically how to decompose work.
 - **Explicit routing**: Before acting, the dispatcher classifies the prompt as either a config request (mentions "config", "add agent", "change model", etc.) or a task request. Config requests are handled inline without spawning a worker; task requests proceed through the normal plan-and-dispatch flow.
 - **Natural language config editing**: Users can say "add gpt-5.3 to my config" or "create a security-reviewer alias" and the dispatcher reads, edits, and writes `~/.dispatch/config.yaml` directly — no special commands needed.
 - **Readable status bar via wrapper script**: Workers are launched through a `/tmp/worker--<task-id>.sh` wrapper so Claude Code's status bar shows a human-readable label instead of the raw agent command.
-- **Sentinel-based IPC**: A lightweight sentinel script polls the IPC directory for unanswered questions. When it finds one, it exits — triggering a `<task-notification>` that alerts the dispatcher. This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
+- **Sentinel-based IPC**: A lightweight sentinel script (bash description: "Monitoring progress: \<task-id\>") polls the IPC directory for unanswered questions and a `.done` completion marker. When it finds an unanswered question, it exits — triggering a `<task-notification>` that alerts the dispatcher. When it finds `.done`, it exits cleanly. This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
 - **Proactive recovery**: When a worker fails to start, the dispatcher checks CLI availability and offers alternatives from the config, updating the default if needed.
 
 ## `.dispatch/` Directory Structure
@@ -134,13 +136,14 @@ Old `agents:` config format is still recognized. Each agent entry is treated as 
         001.question  # Worker's question (plain text)
         001.answer    # Dispatcher's answer (plain text)
         001.done      # Worker's acknowledgment
+        .done         # Completion marker written by worker when all tasks finish
 ```
 
 The `.dispatch/` directory is ephemeral. Delete it to clean up.
 
 ## Local Development
 
-The symlink `.claude/skills/dispatch` → `skills/dispatch/` makes the skill available as `/dispatch` when developing in this repo.
+The symlink `.claude/skills/dispatch` → `../../.agents/skills/dispatch` makes the skill available as `/dispatch` when developing in this repo. The development source is `skills/dispatch/`; the `.agents/skills/dispatch/` copy is the installed version (from `npx skills add`).
 
 ## CI / Automation
 

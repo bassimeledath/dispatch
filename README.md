@@ -105,11 +105,11 @@ aliases:
 
 ## Prerequisites
 
-**Host (required — at least one):**
+**Host (required):**
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
-- [Cursor](https://docs.cursor.com/) (`agent`)
 
 **Workers (optional — for multi-model dispatch):**
+- [Cursor CLI](https://docs.cursor.com/) (`agent`)
 - [Codex CLI](https://github.com/openai/codex) (`codex`)
 - Any CLI that accepts a prompt argument
 

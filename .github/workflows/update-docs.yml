@@ -51,25 +51,29 @@ jobs:
           COMMIT_MSG=$(git log -1 --pretty=%B)
 
           claude -p --model sonnet --dangerously-skip-permissions "$(cat <<PROMPT
-          You are a documentation maintenance bot for the mise CLI project.
+          You are a documentation maintenance bot for the Dispatch project (bassimeledath/dispatch).
+          Dispatch is a Claude Code skill that decomposes tasks into subtasks, dispatches them to
+          background AI worker agents, and tracks progress via checklist-based plan files.
 
           The following diff was just merged to main. Review it and determine if
           README.md and/or CLAUDE.md need to be updated to reflect the changes.
 
           Updates to consider:
-          - New commands → add to Commands table in README.md
-          - New flags → add to Flags table in README.md
-          - New config options → update Configuration section in README.md
           - Architecture changes → update Architecture section in CLAUDE.md
           - New key patterns or conventions → update Key Patterns in CLAUDE.md
+          - Config system changes → update Config System in CLAUDE.md and Configuration in README.md
+          - Changed .dispatch/ directory structure → update directory structure in CLAUDE.md
           - New CI/automation → update CI section in CLAUDE.md
-          - Changed directory structure → update .mise/ directory structure in README.md
+          - Worker/sentinel behavior changes → update How It Works in CLAUDE.md
+          - Host/worker compatibility changes → update Host compatibility in README.md and Key Patterns in CLAUDE.md
+          - IPC protocol changes → update directory structure and Key Patterns in CLAUDE.md
 
           Rules:
           - ONLY update README.md and CLAUDE.md. Do not create or modify any other files.
           - If no updates are needed, make zero file changes.
           - Keep existing style and formatting. Do not rewrite sections that don't need changes.
           - Be precise — only add/modify what the diff actually introduced.
+          - The host environment is Claude Code only (not Cursor). Cursor and Codex are worker backends.
 
           Merge commit message:
           $COMMIT_MSG
@@ -98,8 +102,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="docs/auto-update-$(date +%Y%m%d-%H%M%S)"
-          git config user.name "mise-docs-bot"
-          git config user.email "mise-docs-bot@users.noreply.github.com"
+          git config user.name "dispatch-docs-bot"
+          git config user.email "dispatch-docs-bot@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git add README.md CLAUDE.md
           git commit -m "docs: auto-update from merge [docs-bot]
