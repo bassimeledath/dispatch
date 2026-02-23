@@ -25,6 +25,7 @@ This also installs the companion `/dispatch-feedback` skill for logging feedback
 An AI CLI backend — at least one of:
 - [Cursor CLI](https://docs.cursor.com/) (`agent`) — recommended
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude -p`)
+- [Codex CLI](https://github.com/openai/codex) (`codex`) — for OpenAI models
 
 ## Quick start
 
@@ -59,11 +60,14 @@ backends:
   cursor:
     command: >
       agent -p --force --workspace "$(pwd)"
+  codex:
+    command: >
+      codex exec --full-auto -C "$(pwd)"
 
 models:
   opus:   { backend: claude }
   sonnet: { backend: claude }
-  gpt-5.3-codex: { backend: cursor }
+  gpt-5.3-codex: { backend: codex }
 
 aliases:
   security-reviewer:
