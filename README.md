@@ -1,4 +1,4 @@
-# <img src="skills/dispatch/assets/logo.svg" alt="Dispatch logo" width="56" style="vertical-align: middle;" /> /dispatch
+<h1><img src="skills/dispatch/assets/logo.svg" alt="Dispatch logo" height="36" align="middle" />&nbsp;/dispatch</h1>
 
 **A Claude Code skill that turns your session into a command center.** Stop juggling terminals — dispatch work to background AI agents and stay in flow.
 
