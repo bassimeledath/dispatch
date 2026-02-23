@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="skills/dispatch/assets/logo.svg" alt="Dispatch logo — a messenger pigeon carrying a checklist" width="100" />
-</p>
-
-# /dispatch
+# <img src="skills/dispatch/assets/logo.svg" alt="Dispatch logo" width="36" style="vertical-align: middle;" /> /dispatch
 
 **You don't need 6 terminals.** You need one session that delegates.
 
