@@ -354,7 +354,7 @@ Progress is visible by reading the plan file. You can check it:
 First, determine which task finished by matching the notification's task ID:
 
 - **Sentinel notification** (sentinel task ID matched): A question has arrived from the worker. Go to **Handling Blocked Items → IPC Flow** below.
-- **Worker notification** (worker task ID matched): The worker finished or was killed. Read the plan file, report results. If all items are complete, end your report with: `Feedback? Run /dispatch-feedback "your thoughts"`
+- **Worker notification** (worker task ID matched): The worker finished or was killed. Read the plan file, report results.
 
 ```bash
 cat .dispatch/tasks/<task-id>/plan.md
@@ -530,7 +530,6 @@ Dispatcher: `security-review` complete. Found 2 issues:
   1. Hardcoded API key in config.ts:14
   2. No rate limiting on /api/login endpoint
 Full report at .dispatch/tasks/security-review/output.md
-Feedback? Run `/dispatch-feedback "your thoughts"`
 ```
 
 ### IPC flow (worker asks a question)
@@ -554,7 +553,6 @@ Dispatcher: Answer sent. Worker is continuing.
 
 Dispatcher: [reads plan.md — all items checked]
 Dispatcher: Done! /health endpoint implemented.
-Feedback? Run `/dispatch-feedback "your thoughts"`
 ```
 
 ### First-run setup
