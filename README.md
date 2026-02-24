@@ -10,6 +10,8 @@
 >
 > **With dispatch:** You describe all 5 tasks. The dispatcher plans them as checklists, fans them out to separate workers, and tracks progress. Your main session stays at ~5% context usage. Workers each get full, fresh context. When a worker has a question, it surfaces to you. When it's done, you get a summary. You never poll, you never forget, you never lose context.
 
+Opening more terminals doesn't fix this — it trades context exhaustion for cognitive overload, since _you're_ still the one tracking what's running where. Fire-and-forget background agents give you parallelism but leave the coordination burden on you. Dispatch gives you both: parallel execution with the AI managing the coordination.
+
 ```
 /dispatch use sonnet to find better design patterns for the auth module
 ```
