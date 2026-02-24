@@ -1,16 +1,14 @@
 <h1>/dispatch&nbsp;<img src="skills/dispatch/assets/logo.svg" alt="Dispatch logo" height="56" /></h1>
 
-**Your Claude Code session is the most expensive context window you have. Stop filling it with implementation.** `/dispatch` turns it into a lightweight orchestrator — work fans out to background agents, and the dispatcher bears the cognitive load of tracking it all, so you don't have to.
+**Your Claude Code session is the most expensive context window you have. Stop filling it with implementation.** `/dispatch` turns it into a lightweight orchestrator — work fans out to background agents, each with their own full context window.
 
 <p align="center">
   <img src="skills/dispatch/assets/before-after.jpg" alt="Before: a single session where context fills up fast doing tasks sequentially, with the user overwhelmed tracking everything. After: dispatch keeps your main session lean while workers execute in parallel with their own fresh contexts, and the dispatcher carries the cognitive load." width="900" />
 </p>
 
-> **Without dispatch:** You ask Claude to review code, refactor a module, write tests, and update docs. Each task fills the context window. By task 3, Claude is losing track of earlier work. By task 5, you're starting a new session. You're also the one remembering what's done, what's pending, and what broke.
+> **Without dispatch:** You ask Claude to review code, refactor a module, write tests, and update docs. Each task fills the context window. By task 3, Claude is losing track. By task 5, you're starting a new session.
 >
-> **With dispatch:** You describe all 5 tasks. The dispatcher plans them as checklists, fans them out to separate workers, and tracks progress. Your main session stays at ~5% context usage. Workers each get full, fresh context. When a worker has a question, it surfaces to you. When it's done, you get a summary. You never poll, you never forget, you never lose context.
-
-Opening more terminals doesn't fix this — it trades context exhaustion for cognitive overload, since _you're_ still the one tracking what's running where. Fire-and-forget background agents give you parallelism but leave the coordination burden on you. Dispatch gives you both: parallel execution with the AI managing the coordination.
+> **With dispatch:** You describe all 5 tasks. Workers execute in parallel with fresh contexts. Your main session stays lean. Questions surface to you when needed — no polling, no context lost.
 
 ```
 /dispatch use sonnet to find better design patterns for the auth module
@@ -22,21 +20,17 @@ Opening more terminals doesn't fix this — it trades context exhaustion for cog
 
 ### 10x your effective context
 
-A Claude Code session has a finite context window. Every file it reads, every refactor it performs, every test it writes — that's context consumed. Once the window fills, quality degrades or the session dies.
-
-Dispatch inverts this: the main session becomes a **mediator**, not the thinker. It writes a checklist and hands it off. The actual implementation — reading code, reasoning about edge cases, writing tests — happens in fresh worker contexts that each get their own full window. Your main session's context is preserved for orchestration.
-
-Without dispatch, doing 5 sequential tasks consumes your entire context window. With dispatch, those 5 tasks each get their own full context, and your main session barely uses any.
+Dispatch inverts the usual model: the main session becomes a **mediator**, not the thinker. It writes a checklist and hands it off. The actual implementation — reading code, reasoning about edge cases, writing tests — happens in fresh worker contexts that each get their own full window. Your main session's context is preserved for orchestration.
 
 ### The dispatcher carries the cognitive load
 
-This is the key differentiator from other background agent tools. With `claude --background`, multiple terminals, or fire-and-forget agent runners — _you_ are the orchestrator. You track what's running, check on progress, notice failures, and context-switch between outputs. The cognitive load is on the human.
+With `claude --background`, multiple terminals, or fire-and-forget agent runners — _you_ are the orchestrator. You track what's running, check on progress, notice failures, and context-switch between outputs.
 
-With dispatch, the AI dispatcher tracks all workers, surfaces questions, reports completions, handles errors, and offers recovery. Your job reduces to: **(a)** describe what you want, **(b)** answer questions when asked. The bottleneck shifts from your working memory to the dispatcher's capacity.
+With dispatch, the AI dispatcher tracks all workers, surfaces questions, reports completions, handles errors, and offers recovery. Your job reduces to: **(a)** describe what you want, **(b)** answer questions when asked.
 
 ### Workers ask questions back
 
-This is the part most agent orchestrators get wrong. When a `/dispatch` worker gets stuck, it doesn't silently fail or hallucinate. It **asks a clarifying question** — the dispatcher surfaces it to you, you answer, and the worker continues **without losing context**. No restart, no re-explaining, no lost work.
+When a `/dispatch` worker gets stuck, it doesn't silently fail or hallucinate. It **asks a clarifying question** — the dispatcher surfaces it to you, you answer, and the worker continues **without losing context**. No restart, no re-explaining, no lost work.
 
 ```
 Worker is asking: "requirements.txt doesn't exist. What feature should I implement?"
@@ -47,7 +41,7 @@ Answer sent. Worker is continuing.
 
 ### Non-blocking — you never wait
 
-The moment a worker is dispatched, your session is **immediately free**. Dispatch another task. Ask a question. Write code. The dispatcher handles multiple workers in parallel, reports results as they arrive, and surfaces questions only when they need your input. No polling, no tab-switching, no "is it done yet?"
+The moment a worker is dispatched, your session is **immediately free**. Dispatch another task. Ask a question. Write code. Workers run in parallel and results arrive as they complete.
 
 ### Any model, one interface
 
