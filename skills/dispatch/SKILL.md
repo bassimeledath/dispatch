@@ -18,6 +18,8 @@ First, determine what the user is asking for:
 - **Config request** — mentions "config", "add agent", "add ... to my config", "change model", "set default", "add alias", "create alias", etc. → **Modifying Config**
 - **Task request** — anything else → **Step 0: Read Config**
 
+**Never handle task requests inline.** The user invoked `/dispatch` to get non-blocking background execution. Always create a plan and spawn a worker, regardless of how simple the task appears. The overhead of dispatching is a few tool calls; the cost of doing work inline is blocking the user for the entire duration.
+
 ## First-Run Setup
 
 Triggered when `~/.dispatch/config.yaml` does not exist (checked in Step 0 or Modifying Config). Run through this flow, then continue with the original request.
@@ -228,8 +230,8 @@ For each task, write a plan file at `.dispatch/tasks/<task-id>/plan.md`:
 
 Rules for writing plans:
 - Each item should be a **concrete, verifiable action** (not vague like "review code").
-- 3-8 items is the sweet spot. Too few = no visibility. Too many = micromanagement.
-- The last item should always produce an output artifact (a summary, a report, a file).
+- **Match plan size to task complexity.** A simple edit + open PR is 1 item. A multi-step investigation is 5-8. Don't pad simple tasks with granular sub-steps — "make the change and open a PR" is a single item, not three.
+- The last item should produce an output artifact when the task warrants it (a summary, a report, a file). For simple tasks (edits, fixes, small PRs), this isn't needed.
 - Use the Write tool to create the plan file. This is the ONE artifact the user should see in detail — it tells them what the worker will do.
 
 ## Step 2: Set Up and Spawn
