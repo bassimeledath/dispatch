@@ -153,6 +153,14 @@ cd /path/to/your/dispatch && git pull
 
 Changes are picked up immediately — Claude Code hot-reloads skills from disk.
 
+## Architecture
+
+The dispatcher reads your config, creates a checklist plan, then spawns a background worker and monitor. The worker executes each item and checks it off. If it needs clarification, it writes a question to the IPC directory — the monitor detects it and notifies the dispatcher, which surfaces it to you and relays your answer back, all without the worker losing context.
+
+<p align="center">
+  <img src="skills/dispatch/assets/architecture.png" alt="Sequence diagram showing the dispatch flow: user triggers dispatch, dispatcher creates plan and spawns worker + monitor, worker executes checklist items, IPC handles questions and answers, monitor detects completion and notifies dispatcher." width="900" />
+</p>
+
 ## License
 
 MIT
