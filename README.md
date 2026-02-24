@@ -49,7 +49,7 @@ The moment a worker is dispatched, your session is **immediately free**. Dispatc
 
 ### Any model, one interface
 
-Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini for speed. Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it.
+Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini for speed. Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it. If multiple models are named in one prompt, dispatch uses the last one mentioned.
 
 ```
 /dispatch use opus to review this PR for edge cases
