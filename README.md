@@ -52,15 +52,6 @@ Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini
 /dispatch use gemini to refactor the config parser — it's getting unwieldy
 ```
 
-### How is this different?
-
-| | Single session | `claude --background` / multiple terminals | `/dispatch` |
-|---|---|---|---|
-| **Context usage** | Consumed by implementation | Each terminal independent, but uncoordinated | Main session preserved; workers get fresh contexts |
-| **Cognitive burden** | You track everything | You track everything across more windows | Dispatcher tracks, you answer questions |
-| **Parallel execution** | Sequential | Possible, coordination is manual | Built-in with status + Q&A routing |
-| **Recovery from blockers** | Re-explain from scratch | Re-explain from scratch | Clarify in-place, worker continues with full context |
-
 ---
 
 > **Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) as your host session.** Dispatch is a skill that runs _inside_ Claude Code — the host plans tasks and spawns workers. Other CLIs like [Cursor](https://docs.cursor.com/) and [Codex](https://github.com/openai/codex) work as **workers only** (background agents that execute subtasks).
