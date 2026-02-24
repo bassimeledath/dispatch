@@ -37,7 +37,7 @@ The moment a worker is dispatched, your session is **immediately free**. Dispatc
 
 ### Any model, one interface
 
-Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini for speed. Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it.
+Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini for speed. Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it. If multiple models are named in one prompt, dispatch uses the last one mentioned.
 
 ```
 /dispatch use opus to review this PR for edge cases
@@ -61,7 +61,8 @@ npx skills add bassimeledath/dispatch        # project-level (team-shared)
 2. A checklist plan is created at `.dispatch/tasks/<id>/plan.md`
 3. A background worker picks it up and checks off items as it goes
 4. If the worker has a question, it asks — you answer — it continues
-5. You get results when it's done, or ask for status anytime
+5. If the worker's model fails (auth error, quota, CLI unavailable), you're prompted for an alternative — config is updated so the same failure won't repeat
+6. You get results when it's done, or ask for status anytime
 
 ## Setup
 
