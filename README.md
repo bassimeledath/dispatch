@@ -3,7 +3,7 @@
 **Your Claude Code session is the most expensive context window you have. Stop filling it with implementation.** `/dispatch` turns it into a lightweight orchestrator — work fans out to background agents, and the dispatcher bears the cognitive load of tracking it all, so you don't have to.
 
 <p align="center">
-  <img src="skills/dispatch/assets/before-after.svg" alt="Before: a single session where context fills up fast doing tasks sequentially. After: dispatch keeps your main session lean while workers execute in parallel with their own fresh contexts." width="900" />
+  <img src="skills/dispatch/assets/before-after.jpg" alt="Before: a single session where context fills up fast doing tasks sequentially, with the user overwhelmed tracking everything. After: dispatch keeps your main session lean while workers execute in parallel with their own fresh contexts, and the dispatcher carries the cognitive load." width="900" />
 </p>
 
 > **Without dispatch:** You ask Claude to review code, refactor a module, write tests, and update docs. Each task fills the context window. By task 3, Claude is losing track of earlier work. By task 5, you're starting a new session. You're also the one remembering what's done, what's pending, and what broke.
