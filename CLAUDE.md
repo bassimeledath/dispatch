@@ -18,6 +18,8 @@ Dispatch is a skill (`/dispatch`) for Claude Code that decomposes large coding t
 - **`.dispatch/` directory**: Ephemeral task state. Delete it to clean up.
 - **Config location**: `~/.dispatch/config.yaml` (auto-generated on first run).
 - **Skill source**: `skills/dispatch/SKILL.md` is the canonical skill definition. Do NOT modify it for docs changes.
+- **Multi-model resolution**: If multiple models are named in a single prompt, dispatch uses the last one mentioned.
+- **Failure recovery**: If a worker's model fails (auth error, quota, CLI unavailable), the user is prompted for an alternative and config is updated to avoid the same failure again.
 
 ## Local Development
 
