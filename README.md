@@ -71,6 +71,57 @@ npx skills add bassimeledath/dispatch        # project-level (team-shared)
 4. If the worker has a question, it asks — you answer — it continues *(no context lost in either direction)*
 5. You get results when it's done, or ask for status anytime — *your main session is still lean*
 
+## Complex example
+
+A single prompt can dispatch an entire launch prep across your stack:
+
+```
+/dispatch we launch Thursday, need a full pre-launch sweep:
+
+1) security audit the auth flow (JWT, sessions, password reset) and the
+   stripe payment integration. use opus, do it in a worktree
+
+2) performance - load test the top 5 API endpoints, find N+1 queries,
+   check db indexes on users/orders/products tables. sonnet in a worktree
+
+3) frontend audit - accessibility (WCAG 2.1 AA), bundle size, flag any
+   components missing error boundaries. dispatch sonnet
+
+4) generate OpenAPI specs for every endpoint that's missing one. use gemini
+
+5) error handling audit - find uncaught exceptions, missing try/catch,
+   inconsistent error response formats across all API routes. sonnet, worktree
+
+ask me if anything is unclear. security is highest priority - flag
+anything critical immediately
+```
+
+Dispatch reads the prompt, creates 5 plans, and fans out:
+
+```
+All 5 workers dispatched with their monitors. Here's the summary:
+
+Security (worktree):
+  ● security-audit — Opus 4-6 (worktree): Full auth + payment security review
+
+Performance (worktree):
+  ● perf-audit — Sonnet 4-6 (worktree): API load testing + DB index review
+
+Frontend (single worker):
+  ● frontend-audit — Sonnet 4-6: Accessibility, bundle size, error boundaries
+
+Docs (single worker):
+  ● api-docs — Gemini 2.5 Flash: Generate missing OpenAPI specs
+
+Error handling (worktree):
+  ● error-handling — Sonnet 4-6 (worktree): Uncaught exceptions + error format audit
+
+All running in background. I'll notify you as workers complete or if any
+ask questions. Say "status" anytime to check progress.
+```
+
+Five workers, three models, three worktrees — your session wrote five checklists and is idle. You're free to keep coding.
+
 ## Setup
 
 On first run, `/dispatch` auto-detects your CLIs (`claude`, `agent`, `codex`), discovers available models, and generates `~/.dispatch/config.yaml`. No manual config needed.
