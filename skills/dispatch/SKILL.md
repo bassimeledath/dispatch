@@ -182,7 +182,7 @@ Process old-format configs the same way as before: scan the prompt for agent nam
    - If only Codex: check if it matches an OpenAI model pattern (`gpt`, `codex`, `o1`, `o3`, `o4-mini`). If yes, auto-add with `codex` backend.
    - If not found anywhere, tell the user: "Model X isn't available. Run `agent models` to see what's available, or check your Cursor/Claude/OpenAI subscription."
 
-4. **If no model mentioned:** use the model specified in `default`.
+4. **If no model mentioned:** look up the `default` model in the config. Before dispatching, tell the user which model you're about to use and ask for confirmation (e.g., "I'll dispatch this using **opus** (your default). Sound good?"). If the user confirms, proceed. If they name a different model, use that instead.
 
 5. **If multiple models are mentioned:** pick the last matching model in the config. If the prompt is genuinely ambiguous (e.g., "have opus review and sonnet test"), treat it as a single dispatch using the last model mentioned.
 
