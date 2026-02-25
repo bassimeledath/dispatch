@@ -18,7 +18,7 @@
 
 ## Why dispatch
 
-### 10x your effective context
+### Your session stays lean
 
 Dispatch inverts the usual model: the main session becomes a **mediator**, not the thinker. It writes a checklist and hands it off. The actual implementation — reading code, reasoning about edge cases, writing tests — happens in fresh worker contexts that each get their own full window. Your main session's context is preserved for orchestration.
 
