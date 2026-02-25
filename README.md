@@ -73,7 +73,7 @@ npx skills add bassimeledath/dispatch        # project-level (team-shared)
 
 ## Complex example
 
-A single prompt can dispatch an entire launch prep across your stack:
+Example — pre-launch sweep for a fullstack SaaS app:
 
 ```
 /dispatch we launch Thursday, need a full pre-launch sweep:
@@ -116,11 +116,10 @@ Docs (single worker):
 Error handling (worktree):
   ● error-handling — Sonnet 4-6 (worktree): Uncaught exceptions + error format audit
 
-All running in background. I'll notify you as workers complete or if any
-ask questions. Say "status" anytime to check progress.
+All running in background. Five workers, three models, three worktrees —
+your session wrote five checklists and is idle. Dispatch more work or say
+"status" anytime.
 ```
-
-Five workers, three models, three worktrees — your session wrote five checklists and is idle. Dispatch more work or say "status" anytime.
 
 ## Setup
 
