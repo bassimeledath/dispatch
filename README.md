@@ -1,6 +1,6 @@
 <h1>/dispatch&nbsp;<img src="skills/dispatch/assets/logo.svg" alt="Dispatch logo" height="56" /></h1>
 
-**Dispatch 10x's Claude Code's effective context window.** Instead of filling your session with implementation, `/dispatch` turns it into a lightweight orchestrator — work fans out to background agents, each with their own full context window.
+**Dispatch 10x's Claude Code's effective context window size.** Instead of filling your session with implementation, `/dispatch` turns it into a lightweight orchestrator — work fans out to background agents, each with their own full context window.
 
 <p align="center">
   <img src="skills/dispatch/assets/before-after.jpg" alt="Before: a single session where context fills up fast doing tasks sequentially, with the user overwhelmed tracking everything. After: dispatch keeps your main session lean while workers execute in parallel with their own fresh contexts, and the dispatcher carries the cognitive load." width="900" />
