@@ -18,7 +18,7 @@ Strategy depends on what CLIs are available:
 - Run `agent models 2>&1` — this lists ALL models the user has access to, including Claude, GPT, Gemini, etc.
 - Parse each line: format is `<id> - <Display Name>` (strip `(current)` or `(default)` markers if present).
 - This is the single source of truth for model availability.
-- For Claude models found here (IDs containing `opus`, `sonnet`, `haiku`), these can be routed to either Cursor or Claude Code backend.
+- For Claude models found here (IDs containing `opus`, `sonnet`, `haiku`), route through the `claude` backend when Claude Code CLI is available.
 
 **If only Claude Code is available** (no Cursor):
 - Claude CLI has no `models` command.
