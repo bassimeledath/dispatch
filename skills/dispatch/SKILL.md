@@ -418,27 +418,3 @@ Dispatcher: [reads plan.md — all items checked]
 Dispatcher: Done! /health endpoint implemented.
 ```
 
-### First-run setup
-
-```
-User: /dispatch "review the auth module"
-
-Dispatcher: [no ~/.dispatch/config.yaml found — running first-run setup]
-Dispatcher: [runs `which agent` → found, `which claude` → found]
-Dispatcher: [runs `agent models` → 15 models detected]
-Dispatcher: Found Cursor CLI (15 models) and Claude Code. Notable models:
-  - opus (Claude) — best for complex tasks
-  - sonnet (Claude) — fast and capable
-  - gpt-5.3-codex (GPT) — strong for code
-
-AskUserQuestion: Which model should be your default?
-  1. opus (Recommended)
-  2. sonnet
-  3. gpt-5.3-codex
-
-User: opus
-
-Dispatcher: [generates ~/.dispatch/config.yaml with all 15 models, default: opus]
-Dispatcher: Config created at ~/.dispatch/config.yaml with 15 models. Default: opus.
-Dispatcher: [continues with the original task — dispatches security review using opus]
-```
