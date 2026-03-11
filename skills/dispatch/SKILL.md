@@ -20,129 +20,19 @@ First, determine what the user is asking for:
 
 **Never handle task requests inline.** The user invoked `/dispatch` to get non-blocking background execution. Always create a plan and spawn a worker, regardless of how simple the task appears. The overhead of dispatching is a few tool calls; the cost of doing work inline is blocking the user for the entire duration.
 
-## First-Run Setup
+## Situation → Reference
 
-Triggered when `~/.dispatch/config.yaml` does not exist (checked in Step 0 or Modifying Config). Run through this flow, then continue with the original request.
+| Situation | Read | Contains |
+|-----------|------|----------|
+| `~/.dispatch/config.yaml` doesn't exist | `references/first-run-setup.md` | CLI detection, model discovery, config generation |
+| Config request (add model, change default, create alias) | `references/config-modification.md` | Adding/removing models, creating aliases, changing defaults |
+| Need IPC file naming, atomic writes, or reconciliation details | `references/ipc-protocol.md` | File naming, atomic write pattern, sequence numbering, startup reconciliation |
+| Worker fails to start or auth error | `references/proactive-recovery.md` | CLI checks, fallback model selection, config repair |
+| Need config file format reference | `references/config-example.yaml` | Example config with backends, models, and aliases |
 
-### 1. Detect CLIs
+> **First-run?** If `~/.dispatch/config.yaml` doesn't exist, read `references/first-run-setup.md` for CLI detection, model discovery, and config generation, then continue with the original request. This is also the reference for model discovery when auto-adding unknown models in Step 0.
 
-```bash
-which agent 2>/dev/null  # Cursor CLI
-which claude 2>/dev/null  # Claude Code
-which codex 2>/dev/null  # Codex CLI (OpenAI)
-```
-
-### 2. Discover models
-
-Strategy depends on what CLIs are available:
-
-**If Cursor CLI is available** (covers most cases):
-- Run `agent models 2>&1` — this lists ALL models the user has access to, including Claude, GPT, Gemini, etc.
-- Parse each line: format is `<id> - <Display Name>` (strip `(current)` or `(default)` markers if present).
-- This is the single source of truth for model availability.
-- For Claude models found here (IDs containing `opus`, `sonnet`, `haiku`), these can be routed to either Cursor or Claude Code backend.
-
-**If only Claude Code is available** (no Cursor):
-- Claude CLI has no `models` command.
-- Use stable aliases: `opus`, `sonnet`, `haiku`. These auto-resolve to the latest version (e.g., `opus` → `claude-opus-4-6` today, and will resolve to newer versions as they release).
-- This is intentionally version-agnostic — no hardcoded version numbers that go stale.
-
-**If Codex CLI is available:**
-- Codex has no `codex models` command. Use a curated set of known model IDs: `gpt-5.3-codex`, `gpt-5.3-codex-spark`, `gpt-5.2`.
-- OpenAI models (IDs containing `gpt`, `codex`, `o1`, `o3`, `o4-mini`) should prefer the `codex` backend when available.
-- If Cursor CLI is also available, `agent models` may list OpenAI models — prefer routing those through `codex` when the Codex CLI is installed.
-
-**If multiple CLIs are available:**
-- Use `agent models` as primary source for model discovery (it's comprehensive).
-- Additionally note Claude Code is available as a backend for Claude models.
-- Additionally note Codex is available as a backend for OpenAI models.
-- Prefer native backends: Claude models → `claude` backend, OpenAI models → `codex` backend.
-
-**If neither is found:**
-- Tell the user: "No worker CLI found. Install the Cursor CLI (`agent`), Claude Code CLI (`claude`), or Codex CLI (`codex`), or create a config at `~/.dispatch/config.yaml`."
-- Show them the example config at `${SKILL_DIR}/references/config-example.yaml` and stop.
-
-### 3. Present findings via AskUserQuestion
-
-- Show a summary: "Found Cursor CLI with N models" / "Found Claude Code" / "Found Codex CLI"
-- List a few notable models (top models from each provider — don't dump 30+ models)
-- Ask: "Which model should be your default?"
-- Offer 3-4 sensible choices (e.g., the current Cursor default, opus, sonnet, a GPT option)
-
-### 4. Generate `~/.dispatch/config.yaml`
-
-Build the config file with the new schema:
-
-```yaml
-default: <user's chosen default>
-
-backends:
-  claude:
-    command: >
-      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
-      claude -p --dangerously-skip-permissions
-  cursor:
-    command: >
-      agent -p --force --workspace "$(pwd)"
-  codex:
-    command: >
-      codex exec --full-auto -C "$(pwd)"
-
-models:
-  # Claude
-  opus:          { backend: claude }
-  sonnet:        { backend: claude }
-  haiku:         { backend: claude }
-  # GPT / OpenAI
-  gpt-5.3-codex: { backend: codex }
-  # ... all detected models grouped by provider
-```
-
-Rules:
-- Include **all** detected models — they're one-liners and it's better to have them available than to require re-discovery.
-- **Group by provider** with YAML comments for readability (`# Claude`, `# GPT`, `# Gemini`, etc.).
-- **Claude model detection:** Any model ID containing `opus`, `sonnet`, or `haiku` (including versioned variants like `sonnet-4.6`, `opus-4.5-thinking`, etc.) is a Claude model. When the Claude Code CLI is available, ALL Claude models must use `backend: claude`. Never route Claude models through the cursor backend — the Claude CLI manages model selection natively and doesn't need `--model`.
-- **OpenAI model detection:** Any model ID containing `gpt`, `codex`, `o1`, `o3`, or `o4-mini` is an OpenAI model. When the Codex CLI is available, ALL OpenAI models must use `backend: codex`. Only fall back to `cursor` backend for OpenAI models when Codex is not installed.
-- Only include backends that were actually detected.
-- Set user's chosen default.
-- Run `mkdir -p ~/.dispatch` then write the file.
-
-### 5. Continue
-
-Proceed with the original dispatch or config request — no restart needed.
-
-## Modifying Config
-
-1. Read `~/.dispatch/config.yaml`. If it doesn't exist, run **First-Run Setup** (above), then continue.
-
-2. Apply the user's requested change. The config uses the new schema with `backends:`, `models:`, and `aliases:`.
-
-**Adding a model:**
-- If user says "add gpt-5.3 to my config": probe `agent models` to verify availability, then add to `models:` with the appropriate backend.
-- Example: `gpt-5.3: { backend: cursor }`
-
-**Creating an alias:**
-- If user says "create a security-reviewer alias using opus": add to `aliases:` with optional prompt.
-- Example:
-```yaml
-aliases:
-  security-reviewer:
-    model: opus
-    prompt: >
-      You are a security-focused reviewer. Prioritize OWASP Top 10
-      vulnerabilities, auth flaws, and injection risks.
-```
-
-**Changing the default:**
-- If user says "switch default to sonnet": update `default:` field.
-
-**Removing a model:**
-- If user says "remove gpt-5.2": delete from `models:`.
-
-3. Run `mkdir -p ~/.dispatch` then write the updated file to `~/.dispatch/config.yaml`.
-4. Tell the user what you changed. Done.
-
-**Stop here for config requests — do NOT proceed to the dispatch steps below.**
+> **Config request?** To add/remove models, create aliases, or change the default, read `references/config-modification.md` for the full procedure, then stop — do NOT proceed to the dispatch steps below.
 
 ---
 
@@ -449,67 +339,7 @@ When the worker's `<task-notification>` arrives and the plan shows `- [?]`:
    - The answer to the blocked question is: "<user's answer>"
    - Continue from the blocked item onward
 
-## IPC Protocol Specification
-
-The IPC system uses sequence-numbered files in `.dispatch/tasks/<task-id>/ipc/` for bidirectional communication between the worker and dispatcher.
-
-### Directionality
-
-IPC is **worker-initiated only**. The worker writes questions; the dispatcher writes answers to those questions. The dispatcher must never write unsolicited files to the IPC directory — the worker will not detect or process them.
-
-To provide additional context to a running worker, append notes to the plan file instead (see **Adding Context to a Running Worker** above).
-
-### File naming
-
-- `001.question` — Worker's question (plain text)
-- `001.answer` — Dispatcher's answer (plain text)
-- `001.done` — Acknowledgment from worker that it received the answer
-- Sequence numbers are zero-padded to 3 digits: `001`, `002`, `003`, etc.
-
-### Atomic write pattern
-
-All writes use a two-step pattern to prevent reading partial files:
-1. Write to `<filename>.tmp`
-2. `mv <filename>.tmp <filename>` (atomic on POSIX filesystems)
-
-Both the worker (writing questions) and the dispatcher (writing answers) follow this pattern.
-
-### Sequence numbering
-
-The next sequence number is derived from the count of existing `*.question` files in the IPC directory, plus one. The worker determines this when it needs to ask a question.
-
-### Startup reconciliation
-
-If the dispatcher restarts mid-conversation (e.g., user closes and reopens the session), it should scan the IPC directory for unanswered questions on any active task:
-
-1. List all task directories under `.dispatch/tasks/`.
-2. For each, check `ipc/` for `*.question` files without matching `*.answer` files.
-3. If found, surface the question to the user and resume the IPC flow from step 3 onward.
-
-This ensures questions are never silently lost.
-
-## Proactive Recovery
-
-When a worker fails to start or errors immediately:
-
-1. **Check CLI availability:**
-   ```bash
-   which agent 2>/dev/null
-   which claude 2>/dev/null
-   which codex 2>/dev/null
-   ```
-
-2. **If the CLI is gone or auth fails:**
-   - Tell the user: "The [cursor/claude/codex] CLI is no longer available."
-   - List alternative models/backends still available in the config.
-   - Ask: "Want me to switch your default and retry with [alternative]?"
-
-3. **If the user agrees:**
-   - Update `default:` in config to the alternative model.
-   - Re-dispatch the task with the new model.
-
-4. **If no alternatives exist:**
-   - Tell the user to install a CLI (`agent`, `claude`, or `codex`) or fix their auth, and stop.
+> **IPC details?** For file naming conventions, atomic write patterns, sequence numbering, and startup reconciliation, read `references/ipc-protocol.md`.
 
 ## Parallel Tasks
 
@@ -528,12 +358,14 @@ If task B depends on task A:
 ## Error Handling
 
 - `- [!]` in plan file: report the error, ask user to retry or skip.
-- Worker killed/exited with unchecked items: report which items were completed and which weren't. Ask if user wants to re-dispatch the remaining items. If worker errored immediately, go to **Proactive Recovery**.
-- Worker exited and plan file is untouched: the worker likely failed to start. Check the output file from the notification for clues, then go to **Proactive Recovery**.
+- Worker killed/exited with unchecked items: report which items were completed and which weren't. Ask if user wants to re-dispatch the remaining items. If worker errored immediately, read `references/proactive-recovery.md` for recovery steps.
+- Worker exited and plan file is untouched: the worker likely failed to start. Check the output file from the notification for clues, then read `references/proactive-recovery.md` for recovery steps.
 
 ## Cleanup
 
 Task files persist in `.dispatch/tasks/` for debugging and reference. The user can delete `.dispatch/` to clean up.
+
+**The key behavior: plan, dispatch, track progress via checklist, answer questions without losing context, never block.**
 
 ## Example Interaction
 
@@ -586,29 +418,3 @@ Dispatcher: [reads plan.md — all items checked]
 Dispatcher: Done! /health endpoint implemented.
 ```
 
-### First-run setup
-
-```
-User: /dispatch "review the auth module"
-
-Dispatcher: [no ~/.dispatch/config.yaml found — running first-run setup]
-Dispatcher: [runs `which agent` → found, `which claude` → found]
-Dispatcher: [runs `agent models` → 15 models detected]
-Dispatcher: Found Cursor CLI (15 models) and Claude Code. Notable models:
-  - opus (Claude) — best for complex tasks
-  - sonnet (Claude) — fast and capable
-  - gpt-5.3-codex (GPT) — strong for code
-
-AskUserQuestion: Which model should be your default?
-  1. opus (Recommended)
-  2. sonnet
-  3. gpt-5.3-codex
-
-User: opus
-
-Dispatcher: [generates ~/.dispatch/config.yaml with all 15 models, default: opus]
-Dispatcher: Config created at ~/.dispatch/config.yaml with 15 models. Default: opus.
-Dispatcher: [continues with the original task — dispatches security review using opus]
-```
-
-**The key behavior: plan, dispatch, track progress via checklist, answer questions without losing context, never block.**
