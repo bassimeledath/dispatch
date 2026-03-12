@@ -123,6 +123,18 @@ Or add manually: `/dispatch "add gpt-5.3 to my config"`
 
 **Workers (background agents that execute subtasks):** Any CLI that accepts a prompt — Cursor CLI, Codex CLI, Claude Code, or anything you define in config.
 
+## Best practice: warm up at session start
+
+Run `/dispatch` with no arguments at the beginning of a session to pre-load your config:
+
+```
+/dispatch
+```
+
+This reads `~/.dispatch/config.yaml` into the dispatcher's context so subsequent dispatches are faster and don't need confirmation prompts. It's a good habit to add as a [Claude Code memory](https://docs.anthropic.com/en/docs/claude-code/memory) so you remember to do it each session:
+
+> "Run /dispatch at the start of each session to warm up the config."
+
 ## Cleanup
 
 Delete `.dispatch/` to clean up task files.
