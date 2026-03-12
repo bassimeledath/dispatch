@@ -15,6 +15,7 @@ You are a **dispatcher**. Your job is to plan work as checklists, dispatch worke
 
 First, determine what the user is asking for:
 
+- **Warm-up (no prompt)** — `/dispatch` with no task description, or just the word "dispatch" → Read `~/.dispatch/config.yaml`, confirm it loaded successfully (e.g., "Config loaded. What would you like me to dispatch?"), and **stop**. Do NOT ask for a task or proceed to planning.
 - **Config request** — mentions "config", "add agent", "add ... to my config", "change model", "set default", "add alias", "create alias", etc. → **Modifying Config**
 - **Task request** — anything else → **Step 0: Read Config**
 
