@@ -121,6 +121,18 @@ your session wrote five checklists and is idle. Dispatch more work or say
 "status" anytime.
 ```
 
+## Best practice: warm up at session start
+
+Run `/dispatch` with no arguments at the beginning of a session to pre-load your config:
+
+```
+/dispatch
+```
+
+This reads `~/.dispatch/config.yaml` into the dispatcher's context so subsequent dispatches are faster and don't need confirmation prompts. It's a good habit to add as a [Claude Code memory](https://docs.anthropic.com/en/docs/claude-code/memory) so you remember to do it each session:
+
+> "Run /dispatch at the start of each session to warm up the config."
+
 ## Setup
 
 On first run, `/dispatch` auto-detects your CLIs (`claude`, `agent`, `codex`), discovers available models, and generates `~/.dispatch/config.yaml`. No manual config needed.
