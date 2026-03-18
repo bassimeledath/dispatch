@@ -83,6 +83,13 @@ Process old-format configs the same way as before: scan the prompt for agent nam
 
 8. **Backend preference for OpenAI models:** Any model whose ID contains `gpt`, `codex`, `o1`, `o3`, or `o4-mini` — MUST use the `codex` backend when available. Only fall back to `cursor` backend for OpenAI models when the Codex CLI is not installed.
 
+### Directive parsing
+
+After resolving the model, scan the prompt for the **worktree** directive — phrases like "in a worktree", "use a worktree", or just "worktree" attached to a task. If present, the worker should run in an isolated git worktree so it has its own copy of the repo and can't conflict with other workers or the user's working directory.
+
+- **Claude backend:** Add the `-w` flag to the CLI command (see Command construction below).
+- **Other backends:** Worktree isolation is only supported for the Claude backend. If worktree is requested with a non-Claude backend, tell the user: "Worktree isolation is only available with the Claude backend. Dispatch without worktree, or switch to a Claude model?"
+
 ### Command construction
 
 **Cursor backend** — append `--model <model-id>`:
@@ -94,7 +101,8 @@ Process old-format configs the same way as before: scan the prompt for agent nam
 **Claude backend** — do NOT append `--model`:
 1. Look up model (e.g., `opus`) → `backend: claude`
 2. Look up backend → `env -u ... claude -p --dangerously-skip-permissions`
-3. Use the command as-is. The Claude CLI manages its own model selection.
+3. If the worktree directive is set, add `-w` to the command (e.g., `claude -p -w --dangerously-skip-permissions`).
+4. Use the command as-is (no `--model`). The Claude CLI manages its own model selection.
 
 **Codex backend** — append `--model <model-id>`:
 1. Look up model (e.g., `gpt-5.3-codex`) → `backend: codex`
@@ -156,6 +164,12 @@ Rules for writing plans:
    cat > /tmp/worker--security-review.sh << 'WORKER'
    #!/bin/bash
    env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE claude -p --dangerously-skip-permissions "$(cat /tmp/dispatch-security-review-prompt.txt)" 2>&1
+   WORKER
+
+   # With worktree directive — add -w flag:
+   cat > /tmp/worker--security-review.sh << 'WORKER'
+   #!/bin/bash
+   env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE claude -p -w --dangerously-skip-permissions "$(cat /tmp/dispatch-security-review-prompt.txt)" 2>&1
    WORKER
    cat > /tmp/monitor--security-review.sh << 'MONITOR'
    #!/bin/bash
