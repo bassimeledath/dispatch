@@ -21,6 +21,7 @@ Dispatch is a skill (`/dispatch`) for Claude Code that decomposes large coding t
 - **Warm-up invocation**: Running `/dispatch` with no arguments (or just the word "dispatch") reads `~/.dispatch/config.yaml` and stops — it does not proceed to task planning. Used to pre-load config at session start.
 - **Multi-model resolution**: If multiple models are named in a single prompt, dispatch uses the last one mentioned. If no model is mentioned, dispatch confirms the default model with the user before proceeding.
 - **Failure recovery**: If a worker's model fails (auth error, quota, CLI unavailable), the user is prompted for an alternative and config is updated to avoid the same failure again.
+- **Worktree directive**: Phrases like "in a worktree", "use a worktree", or "worktree" in a prompt cause the worker to run in an isolated git worktree (adds `-w` to the Claude CLI command). Only supported for the Claude backend — if requested with Cursor or Codex, the user is asked to switch or proceed without isolation.
 
 ## Local Development
 
