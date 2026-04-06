@@ -2,8 +2,8 @@
 name: dispatch
 description: "Dispatch background AI worker agents to execute tasks via checklist-based plans. Use when the user says 'dispatch' to delegate work to background agents, e.g. 'dispatch sonnet to review this', 'dispatch opus to fix the bug', 'dispatch a worker to research X'."
 license: MIT
-version: "2.0.0"
-last_updated: "2026-02-22"
+version: "3.0.0"
+last_updated: "2026-04-06"
 user_invocable: true
 ---
 
@@ -39,7 +39,7 @@ First, determine what the user is asking for:
 
 **Everything below is for TASK REQUESTS only (dispatching work to a worker agent).**
 
-**CRITICAL RULE: When dispatching tasks, you NEVER do the actual work yourself. No reading project source, no editing code, no writing implementations. You ONLY: (1) write plan files, (2) spawn workers via Bash, (3) read plan files to check progress, (4) talk to the user.**
+**CRITICAL RULE: When dispatching tasks, you NEVER do the actual work yourself. No reading project source, no editing code, no writing implementations. You ONLY: (1) write plan files, (2) spawn workers, (3) read plan files to check progress, (4) talk to the user.**
 
 ## Step 0: Read Config
 
@@ -87,10 +87,20 @@ Process old-format configs the same way as before: scan the prompt for agent nam
 
 After resolving the model, scan the prompt for the **worktree** directive — phrases like "in a worktree", "use a worktree", or just "worktree" attached to a task. If present, the worker should run in an isolated git worktree so it has its own copy of the repo and can't conflict with other workers or the user's working directory.
 
-- **Claude backend:** Add the `-w` flag to the CLI command (see Command construction below).
+- **Claude backend:** Use `isolation: "worktree"` on the Agent tool (see Spawn procedure below).
 - **Other backends:** Worktree isolation is only supported for the Claude backend. If worktree is requested with a non-Claude backend, tell the user: "Worktree isolation is only available with the Claude backend. Dispatch without worktree, or switch to a Claude model?"
 
-### Command construction
+### Model mapping for Agent tool
+
+When using the Agent tool for Claude backend workers, map the resolved model name to the Agent tool's `model` parameter:
+
+| Config model | Agent tool `model` |
+|-------------|-------------------|
+| `opus`, `opus-4.6`, `opus-4.5`, `opus-4.6-thinking`, `opus-4.5-thinking` | `"opus"` |
+| `sonnet`, `sonnet-4.6`, `sonnet-4.5`, `sonnet-4.6-thinking`, `sonnet-4.5-thinking` | `"sonnet"` |
+| `haiku`, `haiku-4.5` | `"haiku"` |
+
+### Command construction (non-Claude backends only)
 
 **Cursor backend** — append `--model <model-id>`:
 1. Look up model (e.g., `gpt-5.3-codex`) → `backend: cursor`
@@ -98,24 +108,18 @@ After resolving the model, scan the prompt for the **worktree** directive — ph
 3. Append `--model gpt-5.3-codex` → final command:
    `agent -p --force --workspace "$(pwd)" --model gpt-5.3-codex`
 
-**Claude backend** — do NOT append `--model`:
-1. Look up model (e.g., `opus`) → `backend: claude`
-2. Look up backend → `env -u ... claude -p --dangerously-skip-permissions`
-3. If the worktree directive is set, add `-w` to the command (e.g., `claude -p -w --dangerously-skip-permissions`).
-4. Use the command as-is (no `--model`). The Claude CLI manages its own model selection.
-
 **Codex backend** — append `--model <model-id>`:
 1. Look up model (e.g., `gpt-5.3-codex`) → `backend: codex`
 2. Look up backend → `codex exec --full-auto -C "$(pwd)"`
 3. Append `--model gpt-5.3-codex` → final command:
    `codex exec --full-auto -C "$(pwd)" --model gpt-5.3-codex`
 
-**Why no `--model` for Claude?** The Claude CLI resolves aliases like `opus` to specific versioned model IDs internally. This resolution can fail if the resolved version isn't available on the user's account. Omitting `--model` lets the CLI use its own default, which always works.
+**Claude backend** — handled via Agent tool, NOT command construction. See Spawn procedure below.
 
 For an alias (e.g., `security-reviewer`):
 1. Resolve alias → `model: opus`, extract `prompt:` addition
-2. Look up model → `backend: claude`
-3. Construct command: `env -u ... claude -p --dangerously-skip-permissions` (no `--model`)
+2. Look up model → determine backend
+3. If Claude backend: use Agent tool with mapped model. If other backend: construct command as above.
 4. Prepend alias prompt to the worker's task prompt
 
 ## Step 1: Create the Plan File
@@ -143,34 +147,19 @@ Rules for writing plans:
 
 **Minimize user-visible tool calls.** The plan file (Step 1) is the only artifact users need to see in detail. Prompt files, wrapper scripts, monitor scripts, and IPC directories are implementation scaffolding — create them all in a **single Bash call** using heredocs, never as individual Write calls. Use a clear Bash `description` (e.g., "Set up dispatch scaffolding for security-review").
 
-### Dispatch procedure:
+### Spawn procedure — Claude backend (Agent tool):
 
-1. **Create all scaffolding in one Bash call.** This single call must:
+1. **Create scaffolding in one Bash call.** This single call must:
    - `mkdir -p .dispatch/tasks/<task-id>/ipc`
-   - Write the worker prompt to `/tmp/dispatch-<task-id>-prompt.txt` (see Worker Prompt Template below). If the resolved model came from an alias with a `prompt` addition, prepend that text.
-   - Write the wrapper script to `/tmp/worker--<task-id>.sh`. Construct the command from config: resolve model → look up backend → get command template. If backend is `cursor` or `codex`: append `--model <model-id>`. If backend is `claude`: do NOT append `--model`. The script runs: `<command> "$(cat /tmp/dispatch-<task-id>-prompt.txt)" 2>&1`
-   - Write the monitor script to `/tmp/monitor--<task-id>.sh`. It polls the IPC directory for unanswered `.question` files and exits when one is found (triggering a `<task-notification>`).
-   - `chmod +x` both scripts.
+   - Write the monitor script to `/tmp/monitor--<task-id>.sh` (polls for `.question` files)
+   - `chmod +x` the monitor script.
 
-   For **multiple parallel tasks**, combine ALL tasks' scaffolding into this single Bash call.
+   No prompt files or wrapper scripts needed — the prompt goes directly to the Agent tool.
 
-   Example (single task, claude backend):
+   Example:
    ```bash
    # description: "Set up dispatch scaffolding for security-review"
    mkdir -p .dispatch/tasks/security-review/ipc
-   cat > /tmp/dispatch-security-review-prompt.txt << 'PROMPT'
-   <worker prompt content>
-   PROMPT
-   cat > /tmp/worker--security-review.sh << 'WORKER'
-   #!/bin/bash
-   env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE claude -p --dangerously-skip-permissions "$(cat /tmp/dispatch-security-review-prompt.txt)" 2>&1
-   WORKER
-
-   # With worktree directive — add -w flag:
-   cat > /tmp/worker--security-review.sh << 'WORKER'
-   #!/bin/bash
-   env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE claude -p -w --dangerously-skip-permissions "$(cat /tmp/dispatch-security-review-prompt.txt)" 2>&1
-   WORKER
    cat > /tmp/monitor--security-review.sh << 'MONITOR'
    #!/bin/bash
    IPC_DIR=".dispatch/tasks/security-review/ipc"
@@ -188,30 +177,24 @@ Rules for writing plans:
      sleep 3
    done
    MONITOR
-   chmod +x /tmp/worker--security-review.sh /tmp/monitor--security-review.sh
+   chmod +x /tmp/monitor--security-review.sh
    ```
 
-   Example (cursor backend — note `--model` flag):
-   ```bash
-   cat > /tmp/worker--code-review.sh << 'WORKER'
-   #!/bin/bash
-   agent -p --force --workspace "$(pwd)" --model gpt-5.3-codex "$(cat /tmp/dispatch-code-review-prompt.txt)" 2>&1
-   WORKER
+2. **Spawn worker via Agent tool and monitor via Bash.** Launch both in a single message (parallel tool calls):
+
+   **Worker** — use the Agent tool:
+   ```
+   Agent tool:
+     description: "Run dispatch worker: security-review"
+     prompt: <worker prompt — see Worker Prompt Template below>
+     name: <task-id>
+     mode: bypassPermissions
+     model: <mapped model — opus/sonnet/haiku>
+     run_in_background: true
+     isolation: "worktree"  ← only if worktree directive is set
    ```
 
-   Example (codex backend — note `--model` flag, same pattern as cursor):
-   ```bash
-   cat > /tmp/worker--code-review.sh << 'WORKER'
-   #!/bin/bash
-   codex exec --full-auto -C "$(pwd)" --model gpt-5.3-codex "$(cat /tmp/dispatch-code-review-prompt.txt)" 2>&1
-   WORKER
-   ```
-
-2. **Spawn worker and monitor as background tasks.** Launch both in a single message (parallel `run_in_background: true` calls) with clear descriptions:
-   ```bash
-   # description: "Run dispatch worker: security-review"
-   bash /tmp/worker--security-review.sh
-   ```
+   **Monitor** — use Bash with `run_in_background: true`:
    ```bash
    # description: "Monitoring progress: security-review"
    bash /tmp/monitor--security-review.sh
@@ -219,9 +202,64 @@ Rules for writing plans:
 
    **Record both task IDs internally** — you need them to distinguish worker vs monitor notifications. **Do NOT report these IDs to the user** (they are implementation details).
 
+### Spawn procedure — Cursor/Codex backends (Bash):
+
+1. **Create all scaffolding in one Bash call.** This single call must:
+   - `mkdir -p .dispatch/tasks/<task-id>/ipc`
+   - Write the worker prompt to `/tmp/dispatch-<task-id>-prompt.txt` (see Worker Prompt Template below). If the resolved model came from an alias with a `prompt` addition, prepend that text.
+   - Write the wrapper script to `/tmp/worker--<task-id>.sh` with the constructed command.
+   - Write the monitor script to `/tmp/monitor--<task-id>.sh`.
+   - `chmod +x` both scripts.
+
+   Example (cursor backend):
+   ```bash
+   # description: "Set up dispatch scaffolding for code-review"
+   mkdir -p .dispatch/tasks/code-review/ipc
+   cat > /tmp/dispatch-code-review-prompt.txt << 'PROMPT'
+   <worker prompt content>
+   PROMPT
+   cat > /tmp/worker--code-review.sh << 'WORKER'
+   #!/bin/bash
+   agent -p --force --workspace "$(pwd)" --model gpt-5.3-codex "$(cat /tmp/dispatch-code-review-prompt.txt)" 2>&1
+   WORKER
+   cat > /tmp/monitor--code-review.sh << 'MONITOR'
+   #!/bin/bash
+   IPC_DIR=".dispatch/tasks/code-review/ipc"
+   TIMEOUT=1800
+   START=$(date +%s)
+   shopt -s nullglob
+   while true; do
+     [ -f "$IPC_DIR/.done" ] && exit 0
+     for q in "$IPC_DIR"/*.question; do
+       seq=$(basename "$q" .question)
+       [ ! -f "$IPC_DIR/${seq}.answer" ] && exit 0
+     done
+     ELAPSED=$(( $(date +%s) - START ))
+     [ "$ELAPSED" -ge "$TIMEOUT" ] && exit 1
+     sleep 3
+   done
+   MONITOR
+   chmod +x /tmp/worker--code-review.sh /tmp/monitor--code-review.sh
+   ```
+
+2. **Spawn worker and monitor as background tasks.** Launch both in a single message (parallel `run_in_background: true` calls):
+   ```bash
+   # description: "Run dispatch worker: code-review"
+   bash /tmp/worker--code-review.sh
+   ```
+   ```bash
+   # description: "Monitoring progress: code-review"
+   bash /tmp/monitor--code-review.sh
+   ```
+
+   **Record both task IDs internally** — you need them to distinguish worker vs monitor notifications. **Do NOT report these IDs to the user** (they are implementation details).
+
 ### Worker Prompt Template
 
-Write this to the temp file, replacing `{task-id}` with the actual task ID. Append the **Context block** (see below) before the closing line.
+For **Claude backend** (Agent tool), pass this directly as the `prompt` parameter.
+For **other backends**, write this to the temp prompt file.
+
+Replace `{task-id}` with the actual task ID. Append the **Context block** (see below) before the closing line.
 
 ~~~
 You have a plan file at .dispatch/tasks/{task-id}/plan.md containing a checklist.
@@ -391,8 +429,8 @@ User: /dispatch "do a security review of this project"
 
 Dispatcher: [reads ~/.dispatch/config.yaml — default model: opus]
 Dispatcher: [writes .dispatch/tasks/security-review/plan.md]
-Dispatcher: [single Bash call: creates IPC dir, prompt file, wrapper script, monitor script]
-Dispatcher: [spawns worker and monitor as background tasks]
+Dispatcher: [single Bash call: creates IPC dir + monitor script]
+Dispatcher: [spawns worker via Agent tool + monitor via Bash, both in background]
 Dispatcher: Dispatched `security-review` using opus. Plan:
   1. Scan for hardcoded secrets
   2. Review auth logic
@@ -415,7 +453,7 @@ Full report at .dispatch/tasks/security-review/output.md
 ```
 User: /dispatch "implement the feature described in requirements.txt"
 
-Dispatcher: [writes plan, sets up scaffolding, spawns worker + monitor]
+Dispatcher: [writes plan, sets up scaffolding, spawns worker (Agent tool) + monitor (Bash)]
 Dispatcher: Dispatched `impl-feature` using opus. Plan: ...
 
 [<task-notification> arrives — monitor detected a question]
