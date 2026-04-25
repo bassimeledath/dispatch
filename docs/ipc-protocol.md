@@ -35,7 +35,7 @@ Both the worker (writing questions) and the dispatcher (writing answers) follow 
 
 IPC is **worker-initiated**. The worker writes questions; the dispatcher writes answers to those questions. The dispatcher must never write unsolicited files to the IPC directory.
 
-To provide additional context to a running worker, append notes to the plan file instead.
+To provide additional context for the next worker, append notes to the plan file instead.
 
 ## Sequence Numbering
 
@@ -46,7 +46,8 @@ The next sequence number is derived from the count of existing `*.question` file
 If the dispatcher restarts mid-conversation, it should scan the IPC directory for unanswered questions on any active task:
 
 1. List all task directories under `.dispatch/tasks/`.
-2. For each, check `ipc/` for `*.question` files without matching `*.answer` files.
-3. If found, surface the question to the user and resume the flow.
+2. Skip any directory where `ipc/.done` exists (task already completed).
+3. For remaining tasks, check `ipc/` for `*.question` files without matching `*.answer` files.
+4. If found, surface the question to the user and resume the flow.
 
 This ensures questions are never silently lost.

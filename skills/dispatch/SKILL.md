@@ -106,14 +106,7 @@ Rules for writing plans:
 
 ### Spawn procedure
 
-1. **Create the IPC directory in one Bash call:**
-
-   ```bash
-   # description: "Set up dispatch scaffolding for security-review"
-   mkdir -p .dispatch/tasks/security-review/ipc
-   ```
-
-2. **Spawn the worker via the Agent tool** with `run_in_background: true`:
+**Spawn the worker via the Agent tool** with `run_in_background: true`:
 
    ```
    Agent tool:
@@ -124,7 +117,7 @@ Rules for writing plans:
      isolation: "worktree"  ← only if worktree directive is set
    ```
 
-   **Record the task ID internally** — you need it to match notifications. **Do NOT report the task ID to the user** (it is an implementation detail).
+   **Record the Agent tool's background task ID internally** — you need it to match notifications. **Do NOT report background task IDs to the user** (they are implementation details).
 
 ### Worker Prompt Template
 
@@ -135,14 +128,14 @@ You have a plan file at .dispatch/tasks/{task-id}/plan.md containing a checklist
 Work through it top to bottom. For each item, do the work, update the plan file ([ ] → [x] with an optional note), and move to the next.
 
 If you need to ask the user a question:
-1. Write the question to .dispatch/tasks/{task-id}/ipc/<NNN>.question (atomic write via temp file + mv; sequence from 001).
+1. Run `mkdir -p .dispatch/tasks/{task-id}/ipc` then write the question to .dispatch/tasks/{task-id}/ipc/<NNN>.question (atomic write via temp file + mv; sequence from 001).
 2. Write your current context and progress to .dispatch/tasks/{task-id}/context.md so a follow-up worker can continue your work.
 3. Mark the current item [?] with the question text.
 4. Stop working — a new worker will be spawned with the answer to continue.
 
 If you hit an unresolvable error, mark the item [!] with a description and stop.
 
-When all items are checked, write a completion marker: touch .dispatch/tasks/{task-id}/ipc/.done — then your work is done.
+When all items are checked, write a completion marker: `mkdir -p .dispatch/tasks/{task-id}/ipc && touch .dispatch/tasks/{task-id}/ipc/.done` — then your work is done.
 ~~~
 
 ### Context Block Guidance
@@ -162,7 +155,7 @@ Short, descriptive, kebab-case: `security-review`, `add-auth`, `fix-login-bug`.
 ## Step 3: Report and Return Control
 
 After dispatching, tell the user **only what matters**:
-- Which task was dispatched (the task ID)
+- Which task was dispatched (the task name, e.g., `security-review`)
 - Which model is running it
 - A brief summary of the plan (the checklist items)
 - Then **stop and wait**
@@ -223,19 +216,15 @@ If the user provides additional context after a worker has been dispatched (e.g.
 When a `<task-notification>` arrives and the plan shows `- [?]`:
 
 1. Read the blocker explanation from the plan file (the text after `[?]`).
-2. Check for the question file in `.dispatch/tasks/<task-id>/ipc/` — find the `*.question` file without a matching `*.answer`:
+2. Determine the sequence number from the `[?]` item (first question = `001`, second = `002`, etc.).
+3. Surface the question to the user.
+4. Wait for the user's answer.
+5. Write the answer atomically:
    ```bash
-   ls .dispatch/tasks/<task-id>/ipc/
+   echo "<user's answer>" > .dispatch/tasks/<task-id>/ipc/<NNN>.answer.tmp
+   mv .dispatch/tasks/<task-id>/ipc/<NNN>.answer.tmp .dispatch/tasks/<task-id>/ipc/<NNN>.answer
    ```
-3. Read the question file (e.g., `.dispatch/tasks/<task-id>/ipc/001.question`).
-4. Surface the question to the user.
-5. Wait for the user's answer.
-6. Write the answer atomically:
-   ```bash
-   echo "<user's answer>" > .dispatch/tasks/<task-id>/ipc/001.answer.tmp
-   mv .dispatch/tasks/<task-id>/ipc/001.answer.tmp .dispatch/tasks/<task-id>/ipc/001.answer
-   ```
-7. Spawn a **new worker subagent** via the Agent tool with instructions to:
+6. Spawn a **new worker subagent** via the Agent tool with instructions to:
    - Read the plan file
    - Read `context.md` for the previous worker's context
    - The answer to the blocked question is: "<user's answer>"
@@ -278,7 +267,6 @@ User: /dispatch "do a security review of this project"
 
 Dispatcher: [reads ~/.dispatch/config.yaml — default model: opus]
 Dispatcher: [writes .dispatch/tasks/security-review/plan.md]
-Dispatcher: [mkdir -p .dispatch/tasks/security-review/ipc]
 Dispatcher: [spawns worker via Agent tool with run_in_background: true]
 Dispatcher: Dispatched `security-review` using opus. Plan:
   1. Scan for hardcoded secrets
@@ -302,7 +290,7 @@ Full report at .dispatch/tasks/security-review/output.md
 ```
 User: /dispatch "implement the feature described in requirements.txt"
 
-Dispatcher: [writes plan, creates IPC dir, spawns worker via Agent tool]
+Dispatcher: [writes plan, spawns worker via Agent tool]
 Dispatcher: Dispatched `impl-feature` using opus. Plan: ...
 
 [<task-notification> arrives — worker exited with [?]]

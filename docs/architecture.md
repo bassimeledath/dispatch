@@ -15,7 +15,6 @@ Claude Code (dispatcher session)
   |
   |- Reads ~/.dispatch/config.yaml (or runs first-run setup)
   |- Creates plan file (.dispatch/tasks/<id>/plan.md) with checklist
-  |- Creates IPC directory (.dispatch/tasks/<id>/ipc/)
   |- Resolves model → maps to Agent tool model parameter (opus/sonnet/haiku)
   |- Spawns worker via Agent tool with run_in_background: true
   |- Worker checks off items in plan.md as it completes them

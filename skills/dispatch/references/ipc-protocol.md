@@ -37,7 +37,8 @@ The next sequence number is derived from the count of existing `*.question` file
 If the dispatcher restarts mid-conversation (e.g., user closes and reopens the session), it should scan the IPC directory for unanswered questions on any active task:
 
 1. List all task directories under `.dispatch/tasks/`.
-2. For each, check `ipc/` for `*.question` files without matching `*.answer` files.
-3. If found, surface the question to the user and resume the flow from step 4 onward.
+2. Skip any directory where `ipc/.done` exists (task already completed).
+3. For remaining tasks, check `ipc/` for `*.question` files without matching `*.answer` files.
+4. If found, surface the question to the user and resume the flow from step 4 onward.
 
 This ensures questions are never silently lost.

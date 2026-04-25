@@ -97,12 +97,6 @@ Add Claude model variants to your config:
 | `[?]`  | Blocked — waiting for your answer |
 | `[!]`  | Error |
 
-## Host compatibility
-
-**Host (the session where you type `/dispatch`):** Claude Code.
-
-**Workers:** Spawned via the Agent tool as background subagents. Supports opus, sonnet, and haiku models.
-
 ## Best practice: warm up at session start
 
 Run `/dispatch` with no arguments at the beginning of a session to pre-load your config:

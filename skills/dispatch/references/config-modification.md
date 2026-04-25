@@ -1,6 +1,6 @@
 ## Modifying Config
 
-1. Read `~/.dispatch/config.yaml`. If it doesn't exist, run **First-Run Setup** (above), then continue.
+1. Read `~/.dispatch/config.yaml`. If it doesn't exist, read `references/first-run-setup.md` and run that flow first, then continue.
 
 2. Apply the user's requested change. The config has `default`, `models`, and `aliases`.
 
@@ -27,7 +27,7 @@ aliases:
 **Removing a model:**
 - Delete from `models:`. If it was the default, ask the user for a new default.
 
-3. Run `mkdir -p ~/.dispatch` then write the updated file to `~/.dispatch/config.yaml`.
+3. Write the updated file to `~/.dispatch/config.yaml`.
 4. Tell the user what you changed. Done.
 
-**Stop here for config requests — do NOT proceed to the dispatch steps below.**
+**Stop here for config requests — do NOT proceed to the dispatch steps.**
