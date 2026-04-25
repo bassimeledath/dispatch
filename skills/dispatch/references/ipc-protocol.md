@@ -1,18 +1,23 @@
 ## IPC Protocol Specification
 
-The IPC system uses sequence-numbered files in `.dispatch/tasks/<task-id>/ipc/` for bidirectional communication between the worker and dispatcher.
+The IPC system uses sequence-numbered files in `.dispatch/tasks/<task-id>/ipc/` for communication between the worker and dispatcher.
 
-### Directionality
+### Flow
 
-IPC is **worker-initiated only**. The worker writes questions; the dispatcher writes answers to those questions. The dispatcher must never write unsolicited files to the IPC directory — the worker will not detect or process them.
+IPC is **worker-initiated**. The worker writes a question and exits; the dispatcher writes the answer and spawns a new worker to continue.
 
-To provide additional context to a running worker, append notes to the plan file instead (see **Adding Context to a Running Worker** above).
+1. Worker encounters a question → writes `<NNN>.question` file (atomic write)
+2. Worker writes `context.md` with its current state and progress
+3. Worker marks the plan item `[?]` with the question text and stops
+4. Agent tool notification fires → dispatcher reads the question
+5. Dispatcher asks the user, then writes `<NNN>.answer` file (atomic write)
+6. Dispatcher spawns a new worker subagent with instructions to read `context.md` + the answer
 
 ### File naming
 
 - `001.question` — Worker's question (plain text)
 - `001.answer` — Dispatcher's answer (plain text)
-- `001.done` — Acknowledgment from worker that it received the answer
+- `.done` — Completion marker written by worker when all checklist items are done
 - Sequence numbers are zero-padded to 3 digits: `001`, `002`, `003`, etc.
 
 ### Atomic write pattern
@@ -33,6 +38,6 @@ If the dispatcher restarts mid-conversation (e.g., user closes and reopens the s
 
 1. List all task directories under `.dispatch/tasks/`.
 2. For each, check `ipc/` for `*.question` files without matching `*.answer` files.
-3. If found, surface the question to the user and resume the IPC flow from step 3 onward.
+3. If found, surface the question to the user and resume the flow from step 4 onward.
 
 This ensures questions are never silently lost.

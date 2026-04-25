@@ -1,26 +1,18 @@
 # IPC Protocol
 
-The IPC system enables bidirectional communication between workers and the dispatcher without the worker losing context.
-
-## Monitor-Based IPC
-
-A lightweight monitor script (bash description: "Monitoring progress: \<task-id\>") polls the IPC directory for unanswered questions and a `.done` completion marker:
-
-- When it finds an unanswered question → exits, triggering a `<task-notification>` that alerts the dispatcher.
-- When it finds `.done` → exits cleanly.
-
-This lets workers ask questions without exiting, preserving their full in-memory context. Falls back to `[?]` + `context.md` on timeout.
+The IPC system enables communication between workers and the dispatcher using sequence-numbered files in `.dispatch/tasks/<task-id>/ipc/`.
 
 ## Question/Answer Flow
 
-1. Worker writes question to `ipc/001.question` (atomic write via temp file + `mv`)
-2. Monitor detects the unanswered question and exits → triggers `<task-notification>`
-3. Dispatcher reads the question, surfaces it to the user
-4. User answers; dispatcher writes `ipc/001.answer` (atomic write)
-5. Dispatcher respawns the monitor
-6. Worker detects the answer, writes `001.done`, and continues working
+Workers are spawned via the Agent tool. When a worker needs to ask a question, it writes the question to a file and exits. The dispatcher gets notified, asks the user, writes the answer, and spawns a new worker to continue.
 
-If no answer arrives within ~3 minutes, the worker falls back: dumps context to `context.md`, marks the item `[?]` with the question, and exits.
+1. Worker writes question to `ipc/001.question` (atomic write via temp file + `mv`)
+2. Worker writes its context to `context.md` (so the next worker can continue)
+3. Worker marks the plan item `[?]` with the question text and exits
+4. Agent tool notification fires → dispatcher reads the question
+5. Dispatcher surfaces the question to the user
+6. User answers; dispatcher writes `ipc/001.answer` (atomic write)
+7. Dispatcher spawns a new worker subagent with instructions to read `context.md` + the answer + continue
 
 ## File Naming
 
@@ -28,7 +20,6 @@ All files live in `.dispatch/tasks/<task-id>/ipc/`:
 
 - `001.question` — Worker's question (plain text)
 - `001.answer` — Dispatcher's answer (plain text)
-- `001.done` — Acknowledgment from worker that it received the answer
 - `.done` — Completion marker written by worker when all tasks finish
 - Sequence numbers are zero-padded to 3 digits: `001`, `002`, `003`, etc.
 
@@ -42,7 +33,7 @@ Both the worker (writing questions) and the dispatcher (writing answers) follow 
 
 ## Directionality
 
-IPC is **worker-initiated only**. The worker writes questions; the dispatcher writes answers to those questions. The dispatcher must never write unsolicited files to the IPC directory — the worker will not detect or process them.
+IPC is **worker-initiated**. The worker writes questions; the dispatcher writes answers to those questions. The dispatcher must never write unsolicited files to the IPC directory.
 
 To provide additional context to a running worker, append notes to the plan file instead.
 
@@ -56,6 +47,6 @@ If the dispatcher restarts mid-conversation, it should scan the IPC directory fo
 
 1. List all task directories under `.dispatch/tasks/`.
 2. For each, check `ipc/` for `*.question` files without matching `*.answer` files.
-3. If found, surface the question to the user and resume the IPC flow.
+3. If found, surface the question to the user and resume the flow.
 
 This ensures questions are never silently lost.

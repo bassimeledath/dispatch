@@ -2,17 +2,15 @@
 
 **You don't need 6 terminals.** You need one session that delegates.
 
-`/dispatch` turns your AI coding session into a command center. You describe work, it plans a checklist, fans out to background workers — Claude, GPT, Gemini — and tracks progress. You stay in one clean session. Workers do the heavy lifting in isolated contexts.
+`/dispatch` turns your AI coding session into a command center. You describe work, it plans a checklist, fans out to background workers — opus, sonnet, haiku — and tracks progress. You stay in one clean session. Workers do the heavy lifting in isolated contexts.
 
 <p align="center">
-  <img src="assets/before-after.svg" alt="Architecture diagram: Your Session sends a task to the Dispatcher, which fans out to Opus, Sonnet, and Haiku workers in parallel, with a feedback loop for questions and progress. Also supports GPT, Gemini, and other models." width="900" />
+  <img src="assets/before-after.svg" alt="Architecture diagram: Your Session sends a task to the Dispatcher, which fans out to Opus, Sonnet, and Haiku workers in parallel, with a feedback loop for questions and progress." width="900" />
 </p>
 
 ```
 /dispatch "do a security review of this project"
 ```
-
-> **Host requirement:** Dispatch runs inside **Claude Code** — it must be your active session. Other CLIs like Cursor and Codex work as **workers only** (they execute subtasks in the background).
 
 ---
 
@@ -24,25 +22,25 @@ The dispatcher **never does the actual work**. It plans, delegates, and tracks. 
 
 ### Workers ask questions back
 
-This is the part most agent orchestrators get wrong. When a `/dispatch` worker gets stuck, it doesn't silently fail or hallucinate. It **asks a clarifying question** — the dispatcher surfaces it to you, you answer, and the worker continues **without losing context**. No restart, no re-explaining, no lost work.
+This is the part most agent orchestrators get wrong. When a `/dispatch` worker gets stuck, it doesn't silently fail or hallucinate. It **writes a clarifying question** — the dispatcher surfaces it to you, you answer, and a new worker picks up where the previous one left off with your answer and full context.
 
 ```
 Worker is asking: "requirements.txt doesn't exist. What feature should I implement?"
 > Add a /health endpoint that returns JSON with uptime and version.
 
-Answer sent. Worker is continuing.
+Answer sent. New worker continuing from where the previous one left off.
 ```
 
 ### Non-blocking — you never wait
 
 The moment a worker is dispatched, your session is **immediately free**. Dispatch another task. Ask a question. Write code. The dispatcher handles multiple workers in parallel, reports results as they arrive, and surfaces questions only when they need your input. No polling, no tab-switching, no "is it done yet?"
 
-### Any model, one interface
+### Choose the right model per task
 
-Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini for speed. Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it.
+Pick the right Claude model for each job. Opus for deep reasoning and complex tasks, sonnet for a fast and capable balance, haiku for quick simple tasks.
 
 ```
-/dispatch "use gemini-3.1-pro to review the API layer"
+/dispatch "use sonnet to update the README"
 ```
 
 ---
@@ -51,40 +49,24 @@ Mix models per task. Claude for deep reasoning, GPT for broad generation, Gemini
 
 1. You run `/dispatch "task description"`
 2. A checklist plan is created at `.dispatch/tasks/<id>/plan.md`
-3. A background worker picks it up and checks off items as it goes
-4. If the worker has a question, it asks — you answer — it continues
+3. A background worker (Agent tool subagent) picks it up and checks off items as it goes
+4. If the worker has a question, it writes it to an IPC file and exits — you answer — a new worker continues
 5. You get results when it's done, or ask for status anytime
 
 ## Setup
 
-On first run, `/dispatch` auto-detects your CLIs (`claude`, `agent`, `codex`), discovers available models, and generates `~/.dispatch/config.yaml`. No manual config needed.
+On first run, `/dispatch` asks which Claude model you want as your default and generates `~/.dispatch/config.yaml`. No manual config needed.
 
 ## Configuration
 
-Three sections in `~/.dispatch/config.yaml`:
+Two sections in `~/.dispatch/config.yaml`:
 
-**Backends** — CLI commands for each provider:
-```yaml
-backends:
-  claude:
-    command: >
-      env -u CLAUDE_CODE_ENTRYPOINT -u CLAUDECODE
-      claude -p --dangerously-skip-permissions
-  cursor:
-    command: >
-      agent -p --force --workspace "$(pwd)"
-  codex:
-    command: >
-      codex exec --full-auto -C "$(pwd)"
-```
-
-**Models** — one line each, mapped to a backend:
+**Models** — available Claude models:
 ```yaml
 models:
-  opus:            { backend: claude }
-  sonnet:          { backend: claude }
-  gpt-5.3-codex:  { backend: codex }
-  gemini-3.1-pro:  { backend: cursor }
+  opus: {}
+  sonnet: {}
+  haiku: {}
 ```
 
 **Aliases** — named shortcuts with optional role prompts:
@@ -100,13 +82,11 @@ See [`references/config-example.yaml`](references/config-example.yaml) for the f
 
 ## Adding models
 
-Reference any model by name — if it's not in your config, `/dispatch` auto-discovers and adds it:
+Add Claude model variants to your config:
 
 ```
-/dispatch "use gemini-3.1-pro to review the API layer"
+/dispatch "add opus-4.5-thinking to my config"
 ```
-
-Or add manually: `/dispatch "add gpt-5.3 to my config"`
 
 ## Plan markers
 
@@ -121,7 +101,7 @@ Or add manually: `/dispatch "add gpt-5.3 to my config"`
 
 **Host (the session where you type `/dispatch`):** Claude Code.
 
-**Workers (background agents that execute subtasks):** Any CLI that accepts a prompt — Cursor CLI, Codex CLI, Claude Code, or anything you define in config.
+**Workers:** Spawned via the Agent tool as background subagents. Supports opus, sonnet, and haiku models.
 
 ## Best practice: warm up at session start
 

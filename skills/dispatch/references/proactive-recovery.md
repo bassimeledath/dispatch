@@ -1,22 +1,20 @@
 ## Proactive Recovery
 
-When a worker fails to start or errors immediately:
+When a worker agent fails to start or errors immediately:
 
-1. **Check CLI availability:**
-   ```bash
-   which agent 2>/dev/null
-   which claude 2>/dev/null
-   which codex 2>/dev/null
-   ```
+1. **Check the Agent tool error** from the `<task-notification>` result. Common failures:
+   - `resource_exhausted` — model quota exceeded
+   - Access/auth error — model not available on user's plan
+   - Agent tool error — malformed prompt or parameters
 
-2. **If the CLI is gone or auth fails:**
-   - Tell the user: "The [cursor/claude/codex] CLI is no longer available."
-   - List alternative models/backends still available in the config.
-   - Ask: "Want me to switch your default and retry with [alternative]?"
+2. **Suggest an alternative model:**
+   - List the other models available in `~/.dispatch/config.yaml`.
+   - Ask: "Want me to switch to [alternative] and retry?"
+   - Example: "Opus hit a quota limit. Want me to retry with sonnet or haiku?"
 
 3. **If the user agrees:**
-   - Update `default:` in config to the alternative model.
+   - Update `default:` in config to the alternative model (if the user wants to change the default).
    - Re-dispatch the task with the new model.
 
-4. **If no alternatives exist:**
-   - Tell the user to install a CLI (`agent`, `claude`, or `codex`) or fix their auth, and stop.
+4. **If no alternatives work:**
+   - Tell the user to check their Anthropic account/plan and try again later.

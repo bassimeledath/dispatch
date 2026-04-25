@@ -7,8 +7,8 @@ Dispatch is a skill (`/dispatch`) for Claude Code that decomposes large coding t
 | Topic | Doc |
 |-------|-----|
 | Flow diagram, components, design patterns | [docs/architecture.md](docs/architecture.md) |
-| Config schema, command construction, model detection | [docs/config.md](docs/config.md) |
-| Monitor-based IPC, question/answer flow, atomic writes | [docs/ipc-protocol.md](docs/ipc-protocol.md) |
+| Config schema, model resolution | [docs/config.md](docs/config.md) |
+| File-based IPC, question/answer flow, atomic writes | [docs/ipc-protocol.md](docs/ipc-protocol.md) |
 | Local dev setup, symlink structure, CI | [docs/development.md](docs/development.md) |
 
 ## Conventions
@@ -20,8 +20,8 @@ Dispatch is a skill (`/dispatch`) for Claude Code that decomposes large coding t
 - **Skill source**: `skills/dispatch/SKILL.md` is the canonical skill definition. Do NOT modify it for docs changes.
 - **Warm-up invocation**: Running `/dispatch` with no arguments (or just the word "dispatch") reads `~/.dispatch/config.yaml` and stops — it does not proceed to task planning. Used to pre-load config at session start.
 - **Multi-model resolution**: If multiple models are named in a single prompt, dispatch uses the last one mentioned. If no model is mentioned, dispatch confirms the default model with the user before proceeding.
-- **Failure recovery**: If a worker's model fails (auth error, quota, CLI unavailable), the user is prompted for an alternative and config is updated to avoid the same failure again.
-- **Worktree directive**: Phrases like "in a worktree", "use a worktree", or "worktree" in a prompt cause the worker to run in an isolated git worktree (uses `isolation: "worktree"` on the Agent tool). Only supported for the Claude backend — if requested with Cursor or Codex, the user is asked to switch or proceed without isolation.
+- **Failure recovery**: If a worker's model fails (auth error, quota), the user is prompted for an alternative and config is updated to avoid the same failure again.
+- **Worktree directive**: Phrases like "in a worktree", "use a worktree", or "worktree" in a prompt cause the worker to run in an isolated git worktree (uses `isolation: "worktree"` on the Agent tool).
 
 ## Local Development
 
